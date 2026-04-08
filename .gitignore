@@ -25,3 +25,5 @@ pnpm-debug.log*
 /.vs/detectionreport-web/FileContentIndex/a3bd1015-38fa-4345-9bb5-fc5782480fd0.vsidx
 /.vs/detectionreport-web/FileContentIndex/39288962-ed2f-405a-8c93-f15b9e875e5b.vsidx
 /.vs/detectionreport-web/FileContentIndex/764497ec-9136-42bc-84bd-c7cdc71b557c.vsidx
+# Ignore Visual Studio temporary files
+.vs/
