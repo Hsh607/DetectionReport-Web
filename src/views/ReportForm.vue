@@ -147,10 +147,11 @@
                                                clearable
                                                :disabled="isDetail"
                                                @change="(val) => onTechSpecChange(scope.$index, val)">
+                                        <!-- 🔥 强制转数字，解决下拉框不显示选中值 -->
                                         <el-option v-for="t in techSpecList"
                                                    :key="t.Id"
                                                    :label="t.Name"
-                                                   :value="t.Id" />
+                                                   :value="Number(t.Id)" />
                                     </el-select>
                                 </template>
                             </el-table-column>
@@ -254,7 +255,9 @@
                         <div v-if="project?.schemeConfig" style="padding: 0;">
                             <table border="1" cellpadding="6" cellspacing="0" style="width: 100%; border-collapse: collapse; text-align: center;">
                                 <thead>
+                                    <!-- 第一行：基础列 + 扩展列（支持子列） -->
                                     <tr>
+                                        <!-- 1. 基础列：固定跨两行 -->
                                         <th v-for="col in project?.schemeConfig?.BaseColumns || []"
                                             :key="col.id"
                                             :rowspan="2"
@@ -262,37 +265,68 @@
                                             <div>{{ col.label }}</div>
                                             <div style="font-size: 12px; color: #666;">{{ col.enLabel }}</div>
                                         </th>
-                                        <th :colspan="project?.schemeConfig?.ExtendColumns?.length || 0"
-                                            :rowspan="1"
-                                            style="background: #d9d9d9; white-space: pre-line;">
-                                            <div>检测结果</div>
-                                            <div style="font-size: 12px; color: #666;">Test Results</div>
-                                        </th>
+
+                                        <!-- 2. 扩展列：区分【有子列】和【无子列】 -->
+                                        <template v-for="col in project?.schemeConfig?.ExtendColumns || []" :key="col.id">
+                                            <!-- 有子列 → 占第一行，第二行渲染子列 -->
+                                            <th v-if="col.subColumns?.length > 0"
+                                                :colspan="col.subColumns.length"
+                                                style="background:#e6e6e6; white-space: pre-line;">
+                                                <div>{{ col.label }}</div>
+                                                <div style="font-size:12px;color:#666;">{{ col.enLabel }}</div>
+                                            </th>
+                                            <!-- 无子列 → 跨两行，自动合并 -->
+                                            <th v-else
+                                                :rowspan="2"
+                                                style="background:#e6e6e6; white-space: pre-line;">
+                                                <div>{{ col.label }}</div>
+                                                <div style="font-size:12px;color:#666;">{{ col.enLabel }}</div>
+                                            </th>
+                                        </template>
+
+                                        <!-- 操作列：跨两行 -->
                                         <th v-if="!isDetail" :rowspan="2" style="background: #d9d9d9;">操作</th>
                                     </tr>
+
+                                    <!-- 第二行：仅渲染【有子列的扩展列】的子列 -->
                                     <tr>
-                                        <th v-for="col in project?.schemeConfig?.ExtendColumns || []"
-                                            :key="col.id"
-                                            style="background: #e6e6e6; white-space: pre-line;">
-                                            <div>{{ col.label }}</div>
-                                            <div style="font-size: 12px; color: #666;">{{ col.enLabel }}</div>
-                                        </th>
+                                        <template v-for="col in project?.schemeConfig?.ExtendColumns || []" :key="col.id">
+                                            <th v-for="subCol in col.subColumns || []"
+                                                :key="subCol.id"
+                                                style="background:#f0f0f0; white-space: pre-line;">
+                                                <div>{{ subCol.label }}</div>
+                                                <div style="font-size:12px;color:#666;">{{ subCol.enLabel }}</div>
+                                            </th>
+                                        </template>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr v-for="(row, rowIndex) in project.reportData.tableData" :key="rowIndex">
+                                        <!-- 基础列 -->
                                         <td v-for="col in project?.schemeConfig?.BaseColumns || []" :key="col.id">
                                             <el-input v-model="row[col.id]"
                                                       size="small"
                                                       :disabled="isDetail"
                                                       style="text-align: center; border: none; background: transparent;" />
                                         </td>
-                                        <td v-for="col in project?.schemeConfig?.ExtendColumns || []" :key="col.id">
-                                            <el-input v-model="row[col.id]"
-                                                      size="small"
-                                                      :disabled="isDetail"
-                                                      style="text-align: center; border: none; background: transparent;" />
-                                        </td>
+                                        <!-- 扩展列 + 子列 -->
+                                        <template v-for="col in project?.schemeConfig?.ExtendColumns || []" :key="col.id">
+                                            <template v-if="col.subColumns?.length > 0">
+                                                <td v-for="subCol in col.subColumns" :key="subCol.id">
+                                                    <el-input v-model="row[subCol.id]"
+                                                              size="small"
+                                                              :disabled="isDetail"
+                                                              style="text-align: center; border: none; background: transparent;" />
+                                                </td>
+                                            </template>
+                                            <td v-else>
+                                                <el-input v-model="row[col.id]"
+                                                          size="small"
+                                                          :disabled="isDetail"
+                                                          style="text-align: center; border: none; background: transparent;" />
+                                            </td>
+                                        </template>
+                                        <!-- 操作按钮 -->
                                         <td v-if="!isDetail">
                                             <el-button type="link" danger size="small" @click="() => deleteTableRow(projectIndex, rowIndex)">
                                                 删除
@@ -300,6 +334,59 @@
                                         </td>
                                     </tr>
 
+                                    <!-- 👇 【新增】底部列组：一级列严格均分 · 子列完美对齐（和弹窗逻辑一致） -->
+                                    <template v-if="project?.schemeConfig?.BottomColumns?.length > 0">
+                                        <tr>
+                                            <td :colspan="getTotalColSpan(project.schemeConfig)" style="padding: 0; border: none;">
+                                                <table width="100%"
+                                                       cellpadding="6"
+                                                       cellspacing="0"
+                                                       style="border-collapse: collapse; text-align: center; table-layout: fixed;">
+                                                    <!-- 一级标题行：严格均分 -->
+                                                    <thead>
+                                                        <tr style="background: #e6e6e6;">
+                                                            <th v-for="col in project.schemeConfig.BottomColumns"
+                                                                :key="col.id"
+                                                                :colspan="col.subColumns?.length || getExtendTotalColSpan(project.schemeConfig.ExtendColumns) / project.schemeConfig.BottomColumns.length"
+                                                                :style="{ width: (100 / project.schemeConfig.BottomColumns.length) + '%' }"
+                                                                style="border: 1px solid #dcdfe6; font-weight: 600;">
+                                                                <div>{{ col.label }}</div>
+                                                                <div style="font-size: 12px; color: #666;">{{ col.enLabel }}</div>
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <!-- 子列表头行 -->
+                                                        <tr style="background: #f0f0f0;">
+                                                            <template v-for="col in project.schemeConfig.BottomColumns" :key="col.id">
+                                                                <th v-for="(subCol, idx) in col.subColumns || getSubColumnsByExtend(project.schemeConfig.ExtendColumns, project.schemeConfig.BottomColumns.length)"
+                                                                    :key="idx"
+                                                                    style="border: 1px solid #dcdfe6;">
+                                                                    <div>{{ subCol.label }}</div>
+                                                                    <div style="font-size: 12px; color: #666;">{{ subCol.enLabel }}</div>
+                                                                </th>
+                                                            </template>
+                                                        </tr>
+                                                        <!-- 数据输入行 -->
+                                                        <tr style="background: #fff;">
+                                                            <template v-for="col in project.schemeConfig.BottomColumns" :key="col.id">
+                                                                <td v-for="(subCol, idx) in col.subColumns || getSubColumnsByExtend(project.schemeConfig.ExtendColumns, project.schemeConfig.BottomColumns.length)"
+                                                                    :key="idx"
+                                                                    style="border: 1px solid #dcdfe6;">
+                                                                    <el-input v-model="project.reportData.bottomRequirement[`${col.id}_${subCol.id}`]"
+                                                                              size="small"
+                                                                              :disabled="isDetail"
+                                                                              style="text-align: center; border: none; background: transparent;" />
+                                                                </td>
+                                                            </template>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </td>
+                                        </tr>
+                                    </template>
+
+                                    <!-- 尾部字段：技术要求/结论/备注 -->
                                     <tr v-for="(footRow, brIdx) in project?.schemeConfig?.FooterColumns || []"
                                         :key="brIdx"
                                         style="background: #f9f9f9;">
@@ -308,19 +395,29 @@
                                             <span v-if="footRow.enLabel">/ {{ footRow.enLabel }}</span>
                                         </td>
 
+                                        <!-- 🔥 修复1：技术要求 支持子列遍历（和数据行完全统一） -->
                                         <template v-if="footRow.label.includes('技术要求')">
-                                            <td v-for="col in project?.schemeConfig?.ExtendColumns || []"
-                                                :key="col.id"
-                                                style="text-align: center; padding: 8px 12px;">
-                                                <el-input v-model="project.reportData.techRequirement[col.id]"
-                                                          size="small"
-                                                          :disabled="isDetail"
-                                                          style="text-align:center; border:none; background:transparent;" />
-                                            </td>
+                                            <template v-for="col in project?.schemeConfig?.ExtendColumns || []" :key="col.id">
+                                                <template v-if="col.subColumns?.length > 0">
+                                                    <td v-for="subCol in col.subColumns" :key="subCol.id" style="text-align: center; padding: 8px 12px;">
+                                                        <el-input v-model="project.reportData.techRequirement[subCol.id]"
+                                                                  size="small"
+                                                                  :disabled="isDetail"
+                                                                  style="text-align:center; border:none; background:transparent;" />
+                                                    </td>
+                                                </template>
+                                                <td v-else style="text-align: center; padding: 8px 12px;">
+                                                    <el-input v-model="project.reportData.techRequirement[col.id]"
+                                                              size="small"
+                                                              :disabled="isDetail"
+                                                              style="text-align:center; border:none; background:transparent;" />
+                                                </td>
+                                            </template>
                                         </template>
 
+                                        <!-- 🔥 修复2：所有 colspan 替换为【总列数（含子列）+ 操作列】 -->
                                         <td v-else-if="footRow.label.includes('结论')"
-                                            :colspan="(project?.schemeConfig?.ExtendColumns?.length || 0) + (isDetail ? 0 : 1)">
+                                            :colspan="getExtendTotalColSpan(project?.schemeConfig?.ExtendColumns) + (isDetail ? 0 : 1)">
                                             <el-select v-model="project.reportData.conclusion" :disabled="isDetail" style="width:200px">
                                                 <el-option label="符合 / Qualified" value="符合 / Qualified" />
                                                 <el-option label="不符合 / Unqualified" value="不符合 / Unqualified" />
@@ -328,7 +425,7 @@
                                         </td>
 
                                         <td v-else-if="footRow.label.includes('备注')"
-                                            :colspan="(project?.schemeConfig?.ExtendColumns?.length || 0) + (isDetail ? 0 : 1)">
+                                            :colspan="getExtendTotalColSpan(project?.schemeConfig?.ExtendColumns) + (isDetail ? 0 : 1)">
                                             <el-input v-model="project.reportData.note"
                                                       type="textarea"
                                                       :rows="2"
@@ -337,7 +434,8 @@
                                         </td>
 
                                         <td v-else
-                                            :colspan="(project?.schemeConfig?.ExtendColumns?.length || 0) + (isDetail ? 0 : 1)">
+                                            :colspan="getExtendTotalColSpan(project?.schemeConfig?.ExtendColumns) + (isDetail ? 0 : 1)">
+                                            *
                                             <el-input v-model="project.reportData[footRow.field || '']"
                                                       :disabled="isDetail"
                                                       style="width:100%; border:none; background:transparent;" />
@@ -472,19 +570,155 @@
 </template>
 
 <script setup>
-    import { ref, reactive, onMounted, nextTick, watch } from 'vue'
+    //  仅修改此处：合并Vue导入 + 新增ElLoading导入，解决报错，不影响任何功能
+    import { ref, reactive, onMounted, nextTick, watch, computed } from 'vue'
     import { getInspectionList } from '@/api/yunbiaoAuth'
-    import { ElMessage } from 'element-plus'
+    import { ElMessage, ElLoading } from 'element-plus'
     import { useRouter, useRoute } from 'vue-router'
     import axios from 'axios'
     import { Document, Packer, Paragraph, AlignmentType, ImageRun } from 'docx'
     import { saveAs } from 'file-saver'
-    import { computed } from 'vue'
+
+
+    //  临时缓存：预加载的检测数据，等模板就绪再回填
+    const projectDataCache = ref({});
+    // 检测依据缓存（key=项目编码，value=检测依据）
+    const testReferenceCache = ref({});
+
+    // 根据项目名称转换为projectType（14个项目完整覆盖）
+    const getProjectType = (projectName) => {
+        if (projectName.includes('室温拉伸')) return 'room-temperature-tensile';
+        if (projectName.includes('金相检验')) return 'metallographic-inspection';
+        if (projectName.includes('有害相')) return 'harmful-phase';
+        if (projectName.includes('晶间腐蚀')) return 'intergranular-corrosion';
+        if (projectName.includes('点腐蚀')) return 'pitting-corrosion';
+        if (projectName.includes('铁素体')) return 'ferrite';
+        if (projectName.includes('晶粒度')) return 'grain-size';
+        if (projectName.includes('弯曲')) return 'bend-test';
+        if (projectName.includes('布氏硬度')) return 'brinell-hardness';
+        if (projectName.includes('洛氏硬度')) return 'rockwell-hardness';
+        if (projectName.includes('维氏硬度')) return 'vickers-hardness';
+        if (projectName.includes('冲击')) return 'impact-test';
+        if (projectName.includes('化学成分')) return 'chemical-composition';
+        if (projectName.includes('宏观检验')) return 'macroscopic-inspection';
+        if (projectName.includes('夹杂物')) return 'non-metallic-inclusions';
+
+        throw new Error(`未匹配到项目类型：${projectName}`);
+    };
+
+    // 🔥 最终修复版：串行预加载（解决并发超时，第一个有数据→全部有数据）
+    const batchGetAllProjectData = async () => {
+        // 1. 清空旧缓存，避免数据错乱
+        projectDataCache.value = {};
+
+        // 2. 校验必填参数
+        if (!fixedForm.orderNo || !fixedForm.inspectionOrderNo) {
+            ElMessage.warning('请先选择委托单和报检单');
+            return;
+        }
+
+        // 3. 只保留有项目名称的行（过滤空行）
+        const validItems = fixedForm.testEnv.filter(item => item.item);
+        if (validItems.length === 0) {
+            ElMessage.info('未检测到有效检测项目');
+            return;
+        }
+
+        // 4. 加载提示
+        const loading = ElLoading.service({
+            text: `正在预加载 ${validItems.length} 个项目数据...`,
+            background: 'rgba(0, 0, 0, 0.7)'
+        });
+
+        try {
+            let successCount = 0;
+
+            //  串行请求（一个一个发，永不超时）
+            for (const item of validItems) {
+                try {
+                    // 每个请求间隔200ms，给云表喘息时间
+                    await new Promise(resolve => setTimeout(resolve, 200));
+
+                    // 发起单个请求
+                    const res = await axios.post(`/api/yunbiao/report-data/${getProjectType(item.item)}`, {
+                        orderNo: fixedForm.orderNo,
+                        inspectionNo: fixedForm.inspectionOrderNo
+                    });
+
+                    // 匹配索引并缓存数据
+                    const originalIndex = fixedForm.testEnv.findIndex(i => i.item === item.item);
+                    if (originalIndex > -1 && res?.data) {
+                        projectDataCache.value[originalIndex] = Array.isArray(res.data) ? res.data : [res.data];
+                        successCount++;
+                    }
+                } catch (err) {
+                    console.warn(`项目【${item.item}】请求失败：`, err);
+                    continue; // 单个失败不阻断其他
+                }
+            }
+
+            // 结果提示
+            if (successCount === validItems.length) {
+                ElMessage.success(`全部 ${successCount} 个项目数据预加载完成！`);
+            } else {
+                ElMessage.warning(`成功加载 ${successCount}/${validItems.length} 个项目，部分接口异常`);
+            }
+        } catch (err) {
+            ElMessage.error('数据预加载发生异常');
+            console.error('批量加载数据失败：', err);
+        } finally {
+            loading.close();
+        }
+    };
+
+
+    /**
+ * 通用字段映射：把后端中文键名 → 前端列id，自动处理null/undefined
+ * @param {object} source 后端返回的单条数据
+ * @param {object} fieldMap 映射表：{ 后端键名: 前端列id }
+ * @returns {object} 可直接赋值给tableData的行对象
+ */
+    const mapField = (source, fieldMap) => {
+        const target = {};
+        Object.entries(fieldMap).forEach(([sourceKey, targetKey]) => {
+            // 把null/undefined转成空字符串，避免页面显示null
+            target[targetKey] = source[sourceKey] ?? '';
+        });
+        return target;
+    };
+
+
+
 
     // 新增：过滤掉无效项目的计算属性
     const validTestProjects = computed(() => {
         return testProjects.value.filter(project => !!project)
     })
+
+    // 计算扩展列总数量（包含子列）
+    const getExtendTotalColSpan = (extendColumns = []) => {
+        return extendColumns.reduce((sum, col) => {
+            return sum + (col.subColumns?.length || 1)
+        }, 0)
+    }
+
+    // 计算表格总列数（基础列+扩展列总子列）
+    const getTotalColSpan = (config) => {
+        const base = config?.BaseColumns?.length || 0
+        const extend = getExtendTotalColSpan(config?.ExtendColumns || [])
+        return base + extend
+    }
+
+    // 自动根据扩展列生成底部子列（保证对齐，无需手动配置子列）
+    const getSubColumnsByExtend = (extendColumns = [], bottomCount = 2) => {
+        const totalSub = getExtendTotalColSpan(extendColumns)
+        const perCol = totalSub / bottomCount
+        const subList = []
+        for (let i = 0; i < perCol; i++) {
+            subList.push({ id: `sub_${i}`, label: `子列${i + 1}`, enLabel: `Sub${i + 1}` })
+        }
+        return subList
+    }
 
     const router = useRouter()
     const route = useRoute()
@@ -553,6 +787,7 @@
             testReference: '',
             tableData: [],
             techRequirement: {},
+            bottomRequirement: {}, 
             conclusion: '符合 / Qualified',
             note: '',
             reviewer: '',
@@ -565,11 +800,17 @@
     watch(
         [() => fixedForm.orderNo, () => fixedForm.inspectionOrderNo],
         async ([newOrderNo, newInspectionNo]) => {
-            // 🔥 核心修复：编辑模式(isEdit) 禁止执行！否则会清空技术要求
+            // 编辑模式(isEdit) 禁止执行！否则会清空技术要求
             if (newOrderNo && !isDetail && !isEdit) {
                 await new Promise(r => setTimeout(r, 300));
+
+                await getTestReferenceByOrderNo(newOrderNo);
+
+                //获取检测项目环境列表
                 await getInspectionListByOrderNo(newOrderNo, newInspectionNo);
+                //获取委托协议书相关信息
                 await getAgreementByOrderNo(newOrderNo);
+
             }
         },
         { immediate: false }
@@ -585,6 +826,7 @@
         resetSearch()
     }
 
+    //加载报检单列表
     async function loadInspection() {
         try {
             if (fullInsList.value.length === 0) {
@@ -630,13 +872,48 @@
         loadInspection()
     }
 
-    function selectInspection(row) {
+
+    //选择报检单 → 仅做基础赋值，不再提前调用赋值
+    async function selectInspection(row) {
         fixedForm.inspectionOrderNo = row['报检单号'] || '';
         fixedForm.orderNo = row['委托单号'] || '';
         ElMessage.success('选择成功');
         showInspectionDialog.value = false;
     }
 
+    const setDefaultTechSpecForAllRows = async () => {
+        if (isDetail || isEdit) return;
+
+        // 等待列表加载
+        if (!techSpecList.value.length) {
+            await getTechSpecList();
+        }
+
+        // 整个列表里找 名称=默认配置，不去过滤任何数据！
+        const defaultTech = techSpecList.value.find(item => item.Name.trim() === '默认配置');
+
+        if (!defaultTech) {
+            console.log('所有技术要求名称：', techSpecList.value.map(i => i.Name));
+            ElMessage.warning('未找到默认配置');
+            return;
+        }
+
+        await nextTick();
+
+        // 所有行强制赋值默认配置
+        fixedForm.testEnv.forEach((row, idx) => {
+            if (row.projectCode) {
+                row.techSpecCode = Number(defaultTech.Id);
+                row.techSpecName = defaultTech.Name;
+                matchSchemeAndLoadTemplate(idx);
+            }
+        });
+
+        await nextTick();
+        ElMessage.success('已全部设置为默认配置');
+    };
+
+    //查询委托协议信息By委托单号
     async function getAgreementByOrderNo(orderNo) {
         try {
             if (!orderNo || orderNo.trim() === '') {
@@ -680,6 +957,52 @@
         }
     }
 
+    // 2. 获取检测依据的核心方法（修复所有坑：取值、打印、赋值）
+    async function getTestReferenceByOrderNo(orderNo) {
+        // 清空缓存，防止旧数据干扰
+        testReferenceCache.value = {}
+        console.log("📤 传入委托单号：", orderNo)
+
+        if (!orderNo) {
+            console.warn("❌ 单号为空")
+            return
+        }
+
+        try {
+            // 调用后端接口（地址必须正确）
+            const res = await axios.post('/api/yunbiao/test-reference-by-orderno', {
+                orderNo: orderNo
+            })
+
+            // ✅ 第一步：打印后端返回的完整数据（确认拿到）
+            console.log("✅ 后端返回原始数据：", res.data)
+
+            const dataList = res.data || []
+            console.log("✅ 数据总条数：", dataList.length)
+
+            // ✅ 第二步：严格用【中文键名】遍历赋值（一字不差！）
+            dataList.forEach((item, index) => {
+                // 👇 这两个键名必须和后端返回完全一致！
+                const code = item["项目编码"]
+                const standard = item["检测标准"]
+
+                if (code && standard) {
+                    testReferenceCache.value[code] = standard
+                    console.log(`🎯 第${index + 1}条：${code} → ${standard}`)
+                } else {
+                    console.warn("⚠️ 字段缺失：", item)
+                }
+            })
+
+            // ✅ 第三步：打印最终缓存（确认赋值成功）
+            console.log("🏆 最终检测依据缓存：", testReferenceCache.value)
+
+        } catch (error) {
+            console.error("❌ 接口请求失败：", error)
+        }
+    }
+
+    //查询报检单列表
     async function getInspectionListByOrderNo(orderNo, inspectionNo) {
         try {
             if (!orderNo) return;
@@ -757,12 +1080,20 @@
             }));
 
             ElMessage.success(`已自动加载 ${itemList.length} 个检测项目`);
+            // 选完报检单 → 预加载数据
+            await batchGetAllProjectData();
+
+            await nextTick();
+            // 调用赋值函数（此时testEnv已经是新的项目行，不会再空）
+            await setDefaultTechSpecForAllRows();
+
         } catch (err) {
             console.error("接口请求失败：", err);
             ElMessage.error("查询已报检项目失败");
         }
     }
 
+    //获取技术要求列表
     const getTechSpecList = async () => {
         try {
             const res = await axios.get('/api/DetectionConfig/enable-tech-requirements')
@@ -770,6 +1101,7 @@
         } catch (err) { console.error('获取技术要求失败', err) }
     }
 
+    //项目编码值变化更新赋值并匹配新模版
     const onProjectCodeChange = (rowIndex, envCode) => {
         const row = fixedForm.testEnv[rowIndex]
         const env = envList.value.find(item => item.EnvCode === envCode)
@@ -781,6 +1113,7 @@
         matchSchemeAndLoadTemplate(rowIndex)
     }
 
+    //技术要求值变化更新赋值并匹配新模版
     const onTechSpecChange = (rowIndex, val) => {
         const row = fixedForm.testEnv[rowIndex]
         const tech = techSpecList.value.find(t => t.Id === val)
@@ -788,6 +1121,63 @@
         matchSchemeAndLoadTemplate(rowIndex)
     }
 
+
+    /**处理化学成分结果转换
+ * 🔥 核心函数：处理动态列数据（一维数组 → 试样×参数二维映射）
+ * @param {Array} rawData 后端原始数据 [{},{}...]
+ * @param {Object} dynamicCol 动态列配置
+ * @returns {Object} { sampleList: 试样列表, paramList: 参数列表, resultMap: 数据映射 }
+ */
+    const handleDynamicData = (rawData, dynamicCol) => {
+        if (!rawData || !dynamicCol) return { sampleList: [], paramList: [], resultMap: {} }
+
+        // 1. 提取所有唯一试样编号
+        const sampleList = [...new Set(rawData.map(item => item['试样编号']))]
+        // 2. 提取所有唯一检测参数
+        const paramList = [...new Set(rawData.map(item => item['检测参数']))]
+        // 3. 构建映射：试样 → 参数 → 结果
+        const resultMap = {}
+        sampleList.forEach(sample => {
+            resultMap[sample] = {}
+            rawData
+                .filter(item => item['试样编号'] === sample)
+                .forEach(item => {
+                    resultMap[sample][item['检测参数']] = item['检测结果']
+                })
+        })
+
+        return { sampleList, paramList, resultMap }
+    }
+
+
+    // 【100%适配你的后端】冲击试验专用：试样为列，检测项为行
+    const handleImpactTestData = (rawData) => {
+        if (!rawData?.length) return { sampleList: [], paramList: [], resultMap: {} };
+
+        // 关键：和你后端字段完全一致！带"检测项目"后缀！
+        const paramList = [
+            { key: '吸收能量检测项目', label: '冲击吸收能量（J）Impact Absorbed Energy' },
+            { key: '侧膨胀值检测项目', label: '侧向膨胀值 LE（mm）' },
+            { key: '剪切断面率检测项目', label: '剪切断面率 Shear Fracture Appearance（%）' }
+        ];
+
+        // 提取试样列（冲击01/02/03），去重避免重复列
+        const sampleList = [...new Set(rawData.map(item => item['试样编号']))];
+
+        // 🔥 关键修复：resultMap的键 = 子列ID（sample_${试样编号}），和前端完全匹配
+        const resultMap = {};
+        paramList.forEach(p => {
+            resultMap[p.key] = {};
+            rawData.forEach(item => {
+                const sampleKey = `sample_${item['试样编号']}`; // 子列ID格式
+                resultMap[p.key][sampleKey] = item[p.key] || '/';
+            });
+        });
+
+        return { sampleList, paramList, resultMap };
+    };
+
+    //匹配检测项目配置的模版
     const matchSchemeAndLoadTemplate = async (rowIndex) => {
         if (!fixedForm.testEnv[rowIndex] || !testProjects.value[rowIndex]) {
             console.warn("索引越界，跳过模板加载：", rowIndex);
@@ -830,6 +1220,7 @@
                         testReference: "",
                         tableData: [],
                         techRequirement: {},
+                        bottomRequirement: {},
                         conclusion: "符合 / Qualified",
                         note: "",
                         reviewer: "",
@@ -840,6 +1231,118 @@
                 };
 
                 ElMessage.success("模板加载成功");
+
+                // 模板加载后 极简回填检测依据
+                const project = testProjects.value[rowIndex];
+                const currentProjectCode = (project.projectCode || '').trim();
+
+                // 赋值检测依据
+                if (testReferenceCache.value[currentProjectCode]) {
+                    project.reportData ??= {};
+                    project.reportData.testReference = testReferenceCache.value[currentProjectCode];
+                    console.log(`✅ 项目【${currentProjectCode}】检测依据回填成功`);
+                }
+                
+
+                const cachedData = projectDataCache.value[rowIndex];
+                if (cachedData && Array.isArray(cachedData)) {
+                    const project = testProjects.value[rowIndex];
+                    const { tableMap, paramMap } = autoGenerateMap(project.schemeConfig);
+
+                    // 查找动态列（试样编号列，isDynamic=true）
+                    const dynamicSampleColumn = project.schemeConfig?.ExtendColumns?.find(col => col.isDynamic);
+                    // 固定取模板前两列：检测元素/项目、单位（仅化学成分用，冲击不用）
+                    const elementColId = project.schemeConfig?.BaseColumns[0]?.id;
+                    const unitColId = project.schemeConfig?.BaseColumns[1]?.id;
+
+                    if (dynamicSampleColumn) {
+                        // 🔥 关键：正确获取项目类型（用row.item，100%匹配）
+                        const projectType = getProjectType(row.item);
+                        console.log("当前项目类型：", projectType, "项目名称：", row.item);
+
+                        let sampleList, paramList, resultMap;
+
+                        // ==============================================
+                        // 冲击试验分支：完全独立，不影响化学成分
+                        // ==============================================
+                        if (projectType === 'impact-test') {
+                            const impactRes = handleImpactTestData(cachedData);
+                            sampleList = impactRes.sampleList;
+                            paramList = impactRes.paramList;
+                            resultMap = impactRes.resultMap;
+
+                            // 🔥 生成试样子列：ID=sample_${s}，和resultMap键完全一致
+                            dynamicSampleColumn.subColumns = sampleList.map((s) => ({
+                                id: `sample_${s}`,
+                                label: s,
+                                yunbiaoField: `sample_${s}` // 自动映射，确保绑定
+                            }));
+
+
+                            // 现在：第一行对应 A，第二行对应 B，第三行对应 C，完美对应你的后端数据
+                            project.reportData.tableData = paramList.map((param, index) => {
+                                const rowData = {};
+                                // 1. 赋值检测项目列（第一列：吸收能量/侧膨胀值等）
+                                if (elementColId) rowData[elementColId] = param.label;
+
+                                // 2. 🔥 核心修复：检测位置依次赋值
+                                // 原理：param.index = 0,1,2 对应 cachedData[0],1,2 的 检测位置 A,B,C
+                                // 这样就不会固定是 A 了，完全按你数据的顺序来
+                                if (unitColId) {
+                                    rowData[unitColId] = cachedData[index]?.['检测位置'] || '';
+                                }
+
+                                // 3. 赋值试样列数据（冲击01/02/03 的结果）
+                                sampleList.forEach(sample => {
+                                    const sampleKey = `sample_${sample}`;
+                                    rowData[sampleKey] = resultMap[param.key][sampleKey] || '/';
+                                });
+                                return rowData;
+                            });
+
+                            // 🔥 强制响应式更新，确保视图刷新
+                            await nextTick();
+                            project.reportData = { ...project.reportData };
+                            console.log("冲击试验最终表格数据：", project.reportData.tableData);
+                        }
+                        // ==============================================
+                        // 👉 化学成分/其他项目分支：完全恢复原有逻辑，不受影响
+                        // ==============================================
+                        else {
+                            const dynamicRes = handleDynamicData(cachedData, dynamicSampleColumn);
+                            sampleList = dynamicRes.sampleList;
+                            paramList = dynamicRes.paramList;
+                            resultMap = dynamicRes.resultMap;
+
+                            // 生成试样子列（原有逻辑，完全不变）
+                            dynamicSampleColumn.subColumns = sampleList.map((s) => ({
+                                id: `sample_${s}`,
+                                label: s,
+                                yunbiaoField: `sample_${s}`
+                            }));
+
+                            // 生成化学成分表格数据（原有逻辑，完全不变）
+                            project.reportData.tableData = paramList.map(param => {
+                                const rowData = {};
+                                const [element, unit] = param.split(/[，, \s]+/).map(i => i?.trim() || '');
+                                if (elementColId) rowData[elementColId] = element;
+                                if (unitColId) rowData[unitColId] = unit;
+                                sampleList.forEach(sample => {
+                                    rowData[`sample_${sample}`] = resultMap[sample][param] || '/';
+                                });
+                                return rowData;
+                            });
+                        }
+
+                    } else {
+                        // 无动态列的项目，用原有映射逻辑
+                        project.reportData.tableData = cachedData.map(item => mapField(item, tableMap));
+                    }
+
+                    const firstItem = cachedData[0] || {};
+                    project.reportData.paramValues = mapField(firstItem, paramMap);
+                    ElMessage.success(`${row.item}数据自动填充完成`);
+                }
             } else {
                 ElMessage.warning("未匹配到对应配置模板");
             }
@@ -848,6 +1351,53 @@
             console.error(err);
         }
     };
+
+
+    /**
+     * 🔥 终极正确版：完全基于模板配置的 yunbiaoField 自动映射
+     * 读取模板列的 yunbiaoField = 后端字段名，零硬编码，全项目通用
+     * 修复：自动给子列补充yunbiaoField，确保冲击/化学成分都能正常映射
+     */
+    const autoGenerateMap = (schemeConfig) => {
+        const tableMap = {};
+        const paramMap = {};
+
+        // 1. 基础列映射：直接读取 yunbiaoField（后端字段名）
+        [...(schemeConfig.BaseColumns || [])].forEach(col => {
+            if (!col.yunbiaoField) return;
+            tableMap[col.yunbiaoField] = col.id;
+            console.log(`✅ 基础列映射：后端[${col.yunbiaoField}] → 前端列[${col.id}]`);
+        });
+
+        // 2. 扩展列 + 子列：完美适配所有项目（冲击/化学成分/硬度等）
+        [...(schemeConfig.ExtendColumns || [])].forEach(col => {
+            // 有子列 → 遍历子列
+            if (col.subColumns && col.subColumns.length > 0) {
+                col.subColumns.forEach(sub => {
+                    // 🔥 关键修复：如果子列没有yunbiaoField，自动用id填充，确保映射
+                    const field = sub.yunbiaoField || sub.id;
+                    tableMap[field] = sub.id;
+                    console.log(`✅ 子列映射：后端[${field}] → 前端子列[${sub.id}]`);
+                });
+            }
+            // 无子列 → 直接映射
+            else if (col.yunbiaoField) {
+                tableMap[col.yunbiaoField] = col.id;
+                console.log(`✅ 扩展列映射：后端[${col.yunbiaoField}] → 前端列[${col.id}]`);
+            }
+        });
+
+        // 3. 参数行映射
+        (schemeConfig.ParamItems || []).forEach(param => {
+            if (!param.yunbiaoField) return;
+            paramMap[param.yunbiaoField] = param.id;
+            console.log(`✅ 参数行映射：后端[${param.yunbiaoField}] → 前端参数[${param.id}]`);
+        });
+
+        console.log("🎯 最终映射表（后端字段 → 前端ID）：", tableMap);
+        return { tableMap, paramMap };
+    };
+
 
     const addPhotoRow = (idx) => {
         testProjects.value[idx].reportData.photoRows.push({ LeftUrl: '', LeftDesc: '', RightUrl: '', RightDesc: '' })
@@ -927,12 +1477,18 @@
         if (emptyEnv) { ElMessage.warning('请完善所有检测环境'); return }
 
         loading.value = true
-        const submitProjects = testProjects.value.map(p => {
+
+        // 过滤掉 没有加载到模板 的无效项目，其他完全不动！
+        const validProjects = testProjects.value.filter(item => item.schemeConfig)
+
+        const submitProjects = validProjects.map(p => {
             const data = JSON.parse(JSON.stringify(p))
             data.reportData.Header = {
                 TestReference: data.reportData.testReference || '',
                 TestReferenceEn: data.schemeConfig?.TestReferenceEn || ''
             }
+            data.reportData.bottomRequirement = data.reportData.bottomRequirement || {}
+
             return data
         })
 
@@ -1003,69 +1559,171 @@
             console.error(e)
             ElMessage.error('导出失败')
         } finally { exportLoading.value = false }
+    }    
+
+    /**
+const getDetail = async () => {
+    try {
+        const res = await axios.get(`/api/DetectionReport/${id}`)
+        if (res.data.Success) {
+            const data = res.data.Data
+            if (data.HomeInfo) Object.assign(homeForm, data.HomeInfo)
+            fixedForm.sampleDesc = data.FixedInfo?.sampleDesc || ''
+            fixedForm.inspectionOrderNo = data.FixedInfo?.inspectionOrderNo || ''
+            fixedForm.orderNo = data.FixedInfo?.orderNo || ''
+            fixedForm.materialSpec = data.FixedInfo?.materialSpec || ''
+            fixedForm.sampleName = data.FixedInfo?.sampleName || ''
+            fixedForm.sampleMaterial = data.FixedInfo?.sampleMaterial || ''
+            fixedForm.sampleSpec = data.FixedInfo?.sampleSpec || ''
+            fixedForm.additionalInfo = data.FixedInfo?.additionalInfo || ''
+
+            fixedForm.testEnv = (data.FixedInfo?.testEnv || []).map(row => ({
+                ...row,
+                techSpecCode: row.techSpecCode ? Number(row.techSpecCode) : null
+            }))
+            fixedForm.testEquipment = data.FixedInfo?.testEquipment || []
+
+            testProjects.value = []
+            const projects = (data.TestProjects || [])
+
+            for (let item of projects) {
+                // 解析模板配置
+                if (typeof item.SchemeConfig === 'string') item.SchemeConfig = JSON.parse(item.SchemeConfig)
+                const scheme = item.SchemeConfig
+                const rd = item.ReportData || {}
+
+                // ==============================================
+                // 🔥 核心新增：根据中文名配置自动匹配接口数据
+                // ==============================================
+                // 1. 收集模板所有列（基础列+扩展列+子列）
+                const allColumns = [
+                    ...(scheme.BaseColumns || []),
+                    ...(scheme.ExtendColumns || []).flatMap(col => col.subColumns || [col])
+                ]
+                // 2. 生成回填数据（yunbiaoField=中文名，直接匹配接口字段）
+                const tableRow = {}
+                allColumns.forEach(col => {
+                    if (col.yunbiaoField) {
+                        // 直接用中文名取值，完美匹配你的接口！
+                        tableRow[col.id] = rd[col.yunbiaoField] ?? ''
+                    }
+                })
+
+                // 组装数据（替换原tableData）
+                testProjects.value.push({
+                    projectCode: item.projectCode || '',
+                    techSpecCode: item.techSpecCode ? Number(item.techSpecCode) : null,
+                    techSpecName: item.techSpecName || '',
+                    schemeConfig: scheme,
+                    showPhotoArea: scheme.PhotoConfig?.enabled ?? false,
+                    reportData: {
+                        Header: rd.Header || { TestReference: '', TestReferenceEn: '' },
+                        testReference: rd.TestReference || '',
+                        tableData: [tableRow], // ✅ 回填后的数据
+                        techRequirement: rd.TechRequirement || {},
+                        conclusion: rd.Conclusion || '符合 / Qualified',
+                        note: rd.Note || '',
+                        reviewer: rd.Reviewer || '',
+                        approval: rd.Approval || {},
+                        paramValues: rd.ParamValues || {},
+                        photoRows: rd.PhotoRows || [{ LeftUrl: '', LeftDesc: '', RightUrl: '', RightDesc: '' }]
+                    }
+                })
+            }
+
+            ElMessage.success('加载成功')
+        }
+    } catch (err) {
+        ElMessage.error('加载失败')
+        console.error(err)
     }
+}
+ */
 
     const getDetail = async () => {
         try {
             const res = await axios.get(`/api/DetectionReport/${id}`)
             if (res.data.Success) {
                 const data = res.data.Data
-                if (data.HomeInfo) Object.assign(homeForm, data.HomeInfo)
-                fixedForm.sampleDesc = data.FixedInfo?.sampleDesc || ''
-                fixedForm.inspectionOrderNo = data.FixedInfo?.inspectionOrderNo || ''
-                fixedForm.orderNo = data.FixedInfo?.orderNo || ''
-                fixedForm.materialSpec = data.FixedInfo?.materialSpec || ''
-                fixedForm.sampleName = data.FixedInfo?.sampleName || ''
-                fixedForm.sampleMaterial = data.FixedInfo?.sampleMaterial || ''
-                fixedForm.sampleSpec = data.FixedInfo?.sampleSpec || ''
-                fixedForm.additionalInfo = data.FixedInfo?.additionalInfo || ''
 
-                // 🔥 修复1：techSpecCode 转数字（和下拉框value类型匹配）
-                fixedForm.testEnv = (data.FixedInfo?.testEnv || []).map(row => ({
+                // 1. 回填首页表单
+                if (data.HomeInfo) Object.assign(homeForm, data.HomeInfo)
+
+                // 2. 回填固定信息
+                const fixed = data.FixedInfo || {}
+                fixedForm.sampleDesc = fixed.sampleDesc || ''
+                fixedForm.inspectionOrderNo = fixed.inspectionOrderNo || ''
+                fixedForm.orderNo = fixed.orderNo || ''
+                fixedForm.materialSpec = fixed.materialSpec || ''
+                fixedForm.sampleName = fixed.sampleName || ''
+                fixedForm.sampleMaterial = fixed.sampleMaterial || ''
+                fixedForm.sampleSpec = fixed.sampleSpec || ''
+                fixedForm.additionalInfo = fixed.additionalInfo || ''
+
+                fixedForm.testEnv = (fixed.testEnv || []).map(row => ({
                     ...row,
                     techSpecCode: row.techSpecCode ? Number(row.techSpecCode) : null
                 }))
-                fixedForm.testEquipment = data.FixedInfo?.testEquipment || []
+                fixedForm.testEquipment = fixed.testEquipment || []
 
+                // 3. 清空项目列表，重新赋值
                 testProjects.value = []
-                const projects = (data.TestProjects || [])
-                for (let item of projects) {
-                    if (typeof item.SchemeConfig === 'string') item.SchemeConfig = JSON.parse(item.SchemeConfig)
+                const projects = data.TestProjects || []
+
+                for (const item of projects) {
+                    // 解析模板配置（兼容字符串/对象格式）
+                    const schemeConfig = typeof item.SchemeConfig === 'string'
+                        ? JSON.parse(item.SchemeConfig)
+                        : item.SchemeConfig
                     const rd = item.ReportData || {}
+
+                    // ✅ 核心修复：直接用后端返回的真实数据，不手动拼！
+                    // 把后端大驼峰 → 前端小驼峰，完美适配模板
                     testProjects.value.push({
-                        projectCode: item.projectCode || '',
-                        techSpecCode: item.techSpecCode ? Number(item.techSpecCode) : null, // 🔥 修复2：转数字
-                        techSpecName: item.techSpecName || '',
-                        schemeConfig: item.SchemeConfig,
-                        showPhotoArea: item.SchemeConfig?.PhotoConfig?.enabled ?? false,
+                        projectCode: item.ProjectCode || '',
+                        techSpecCode: item.TechSpecCode ? Number(item.TechSpecCode) : null,
+                        techSpecName: item.TechSpecName || '',
+                        schemeConfig: schemeConfig,
+                        showPhotoArea: schemeConfig.PhotoConfig?.enabled ?? false,
                         reportData: {
+                            // 检测依据
                             Header: rd.Header || { TestReference: '', TestReferenceEn: '' },
                             testReference: rd.TestReference || '',
+
+                            // ✅ 关键：后端 TableData → 前端 tableData（模板绑定的是小写）
                             tableData: rd.TableData || [],
+
+                            // 技术要求
                             techRequirement: rd.TechRequirement || {},
+
+                            // 底部列
+                            bottomRequirement: rd.BottomRequirement || {}, 
+
+                            // 结论
                             conclusion: rd.Conclusion || '符合 / Qualified',
+                            // 备注
                             note: rd.Note || '',
+                            // 审核人
                             reviewer: rd.Reviewer || '',
+                            // 审批信息
                             approval: rd.Approval || {},
+                            // 参数行（尺寸/温度/缺口）
                             paramValues: rd.ParamValues || {},
+                            // 照片
                             photoRows: rd.PhotoRows || [{ LeftUrl: '', LeftDesc: '', RightUrl: '', RightDesc: '' }]
                         }
                     })
                 }
 
-                // 🔥 修复3：编辑页自动加载检测项目模板（和查看页一致）
-                await nextTick()
-                testProjects.value.forEach((_, index) => {
-                    matchSchemeAndLoadTemplate(index)
-                })
-
-                ElMessage.success('加载成功')
+                ElMessage.success('报告详情加载成功 ✅')
             }
         } catch (err) {
             ElMessage.error('加载失败')
-            console.error(err)
+            console.error('详情加载错误：', err)
         }
     }
+
+
 
     onMounted(async () => {
         // 1. 先加载技术要求列表（必须第一步，确保下拉框有选项）

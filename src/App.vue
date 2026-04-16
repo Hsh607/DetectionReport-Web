@@ -1,7 +1,8 @@
 <template>
     <el-container style="height: 100vh; border: 1px solid #eee;">
         <el-aside width="200px" style="background-color: #2e3b4e;">
-            <el-menu default-active="/config"
+            <!-- 🔥 核心修改：default-active 改为动态绑定当前路由 -->
+            <el-menu :default-active="route.path"
                      class="el-menu-vertical-demo"
                      background-color="#2e3b4e"
                      text-color="#fff"
@@ -59,17 +60,19 @@
 
 <script setup>
     import { onMounted } from 'vue'
+    // 🔥 新增：导入路由对象
+    import { useRoute } from 'vue-router'
     import { Setting, Document } from '@element-plus/icons-vue'
     import axios from 'axios'
+
+    // 🔥 新增：获取当前路由
+    const route = useRoute()
 
     onMounted(() => {
         const urlParams = new URLSearchParams(window.location.search)
         const token = urlParams.get('token')
         const userName = urlParams.get('userName')
 
-        // ==============================================
-        // 1. 处理用户信息存储
-        // ==============================================
         if (token) {
             console.log("✅ 来自云表登录")
             localStorage.setItem('token', token)
@@ -77,19 +80,12 @@
         } else {
             console.log("✅ 本地直接打开，使用默认账户")
             localStorage.setItem('username', '测试管理员')
-            // 🔥 关键：本地打开时，彻底清除可能残留的非法 token，避免干扰
             localStorage.removeItem('token')
         }
         localStorage.setItem('loginTime', new Date().toLocaleString())
 
-        // ==============================================
-        // 2. 🔥 修复请求拦截器（极简版，彻底解决编码错误）
-        // ==============================================
         axios.interceptors.request.use(config => {
-            // 直接获取 token，不再做任何复杂的正则校验
             const token = localStorage.getItem('token')
-
-            // 只有当 token 确实存在且是标准字符串时，才添加头
             if (token && typeof token === 'string') {
                 config.headers.Authorization = `Bearer ${token}`
             }

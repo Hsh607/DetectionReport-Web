@@ -9,9 +9,7 @@ import router from './router/index.js'
 
 const app = createApp(App)
 
-// ==============================================
-// 🔥 自动区分环境，本地/服务器永远不用改代码
-// ==============================================
+// 自动区分环境，本地/服务器永远不用改代码
 axios.defaults.baseURL = process.env.VUE_APP_BASE_URL
 axios.defaults.withCredentials = true
 
