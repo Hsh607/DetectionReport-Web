@@ -4,10 +4,9 @@ import DetectionConfig from '@/views/DetectionConfig.vue'
 import DetectionEnvManage from '@/views/DetectionEnvManage.vue'
 
 import ReportList from '@/views/ReportList.vue'
-import ReportForm from '@/views/ReportForm.vue'
+
 
 const routes = [
-    // 默认首页重定向到报告列表（更符合业务逻辑）
     { path: '/', redirect: '/report/list' },
 
     {
@@ -26,11 +25,11 @@ const routes = [
     {
         path: '/report/form',
         name: 'ReportForm',
-        component: ReportForm,
+        // 🔥 核心修改：指向拆分后的 index.vue
+        component: () => import('@/views/ReportForm/ReportForm.vue'),
         meta: { title: '检测报告录入' }
     },
 
-    // 3. 原有检测环境管理（保留不动）
     {
         path: '/detection-env',
         name: 'DetectionEnvManage',

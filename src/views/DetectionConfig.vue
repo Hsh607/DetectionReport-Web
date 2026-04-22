@@ -443,33 +443,27 @@
                     </table>
                 </div>
 
-                <!-- 核心表格：最终零bug、零警告、完美对齐版 -->
-                <table border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse; text-align: center; margin-top:10px; table-layout: fixed;">
+                <!-- 核心表格：完全对齐报告实际渲染 -->
+                <table border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse; text-align: center; margin-top:10px;">
                     <thead>
-                        <!-- 第一行：一级表头 -->
+                        <!-- 第一行：基础列 + 扩展列（含子列合并） -->
                         <tr>
                             <th v-for="col in form.BaseColumns" :key="col.id" rowspan="2" style="background: #d9d9d9;">
                                 <div>{{ col.label }}</div>
                                 <div style="font-size:12px;color:#666;">{{ col.enLabel }}</div>
                             </th>
                             <template v-for="col in form.ExtendColumns" :key="col.id">
-                                <th v-if="col.isDynamic" :colspan="col.subColumns?.length || 0" style="background:#e6e6e6;">
+                                <th v-if="col.subColumns?.length > 0" :colspan="col.subColumns.length" style="background:#e6e6e6;">
                                     <div>{{ col.label }}</div>
                                     <div style="font-size:12px;color:#666;">{{ col.enLabel }}</div>
                                 </th>
-                                <template v-else>
-                                    <th v-if="col.subColumns?.length > 0" :colspan="col.subColumns.length" style="background:#e6e6e6;">
-                                        <div>{{ col.label }}</div>
-                                        <div style="font-size:12px;color:#666;">{{ col.enLabel }}</div>
-                                    </th>
-                                    <th v-else rowspan="2" style="background:#e6e6e6;">
-                                        <div>{{ col.label }}</div>
-                                        <div style="font-size:12px;color:#666;">{{ col.enLabel }}</div>
-                                    </th>
-                                </template>
+                                <th v-else rowspan="2" style="background:#e6e6e6;">
+                                    <div>{{ col.label }}</div>
+                                    <div style="font-size:12px;color:#666;">{{ col.enLabel }}</div>
+                                </th>
                             </template>
                         </tr>
-                        <!-- 第二行：二级表头（子列） -->
+                        <!-- 第二行：扩展列的子列头 -->
                         <tr>
                             <template v-for="col in form.ExtendColumns" :key="col.id">
                                 <th v-for="subCol in col.subColumns || []" :key="subCol.id" style="background:#f0f0f0;">
@@ -480,7 +474,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <!-- 示例数据行 -->
+                        <!-- 模拟数据行 -->
                         <tr>
                             <td v-for="col in form.BaseColumns" :key="col.id">/</td>
                             <template v-for="col in form.ExtendColumns" :key="col.id">
@@ -491,7 +485,7 @@
                             </template>
                         </tr>
 
-                        <!-- 👇 底部列组（如果不需要，可直接删除整段） -->
+                        <!-- 底部列组（BottomColumns） - 占据整行，内部嵌套表格 -->
                         <template v-if="form.BottomColumns.length > 0">
                             <tr>
                                 <td :colspan="totalTableCols" style="padding: 0; border: none;">
@@ -507,7 +501,7 @@
                                         <tbody>
                                             <tr style="background: #f0f0f0;">
                                                 <template v-for="col in form.BottomColumns" :key="col.id">
-                                                    <th v-for="(subCol, idx) in col.subColumns || [{ label: col.label, enLabel: col.enLabel }]" :key="idx" style="border: 1px solid #ccc;">
+                                                    <th v-for="(subCol, idx) in (col.subColumns?.length ? col.subColumns : [{ label: col.label, enLabel: col.enLabel }])" :key="idx" style="border: 1px solid #ccc;">
                                                         <div>{{ subCol.label }}</div>
                                                         <div style="font-size: 12px; color: #666;">{{ subCol.enLabel }}</div>
                                                     </th>
@@ -515,7 +509,7 @@
                                             </tr>
                                             <tr style="background: #fff;">
                                                 <template v-for="col in form.BottomColumns" :key="col.id">
-                                                    <td v-for="(subCol, idx) in col.subColumns || [{ label: '', enLabel: '' }]" :key="idx" style="border: 1px solid #ccc;">
+                                                    <td v-for="(subCol, idx) in (col.subColumns?.length ? col.subColumns : [{ label: '', enLabel: '' }])" :key="idx" style="border: 1px solid #ccc;">
                                                         {{ col.requirement || '/' }}
                                                     </td>
                                                 </template>
@@ -526,21 +520,39 @@
                             </tr>
                         </template>
 
-                        <!-- 👇 【核心修正】尾部行：左标签占基础列宽，右大输入框占扩展列宽（完全匹配你的截图） -->
-                        <template v-if="form.FooterColumns?.length > 0">
-                            <tr v-for="footer in form.FooterColumns" :key="footer.id">
-                                <!-- 左标签列：占所有基础列的总宽度，样式和表头基础列统一 -->
-                                <td :colspan="form.BaseColumns.length"
-                                    style="background: #d9d9d9; font-weight: 600; padding: 12px; text-align: left; border: 1px solid #ccc;">
-                                    <div>{{ footer.label }}</div>
-                                    <div style="font-size: 12px; color: #666; margin-top: 4px;">{{ footer.enLabel }}</div>
-                                </td>
-                                <!-- 右大数据列：占所有扩展列的总宽度，合并为一个大输入框 -->
-                                <td :colspan="totalTableCols - form.BaseColumns.length"
-                                    style="background: #fff; padding: 12px; text-align: left; border: 1px solid #ccc; min-height: 80px; vertical-align: top;">
-                                    {{ footer.value || '/' }}
-                                </td>
-                            </tr>
+                        <!-- 尾部字段（FooterColumns）：特殊处理“技术要求”行，自动匹配扩展列子列数量 -->
+                        <template v-if="form.FooterColumns.length > 0">
+                            <template v-for="footer in form.FooterColumns" :key="footer.id">
+                                <!-- 如果尾部字段的标签包含“技术要求”，则按照报告实际逻辑渲染 -->
+                                <tr v-if="footer.label.includes('技术要求')">
+                                    <!-- 左标签：占基础列数 -->
+                                    <td :colspan="form.BaseColumns.length" style="background: #d9d9d9; font-weight: 600; padding: 12px; text-align: left;">
+                                        <div>{{ footer.label }}</div>
+                                        <div style="font-size: 12px; color: #666;">{{ footer.enLabel }}</div>
+                                    </td>
+                                    <!-- 右侧：遍历扩展列的每个子列，生成对应数量的输入框 -->
+                                    <template v-for="col in form.ExtendColumns" :key="col.id">
+                                        <template v-if="col.subColumns?.length > 0">
+                                            <td v-for="subCol in col.subColumns" :key="subCol.id" style="background: #fff; padding: 12px; text-align: left;">
+                                                {{ footer.value || '/' }}
+                                            </td>
+                                        </template>
+                                        <td v-else style="background: #fff; padding: 12px; text-align: left;">
+                                            {{ footer.value || '/' }}
+                                        </td>
+                                    </template>
+                                </tr>
+                                <!-- 其他尾部字段（如结论、备注）按原合并逻辑 -->
+                                <tr v-else>
+                                    <td :colspan="form.BaseColumns.length" style="background: #d9d9d9; font-weight: 600; padding: 12px; text-align: left;">
+                                        <div>{{ footer.label }}</div>
+                                        <div style="font-size: 12px; color: #666;">{{ footer.enLabel }}</div>
+                                    </td>
+                                    <td :colspan="extendTotalCols" style="background: #fff; padding: 12px; text-align: left;">
+                                        {{ footer.value || '/' }}
+                                    </td>
+                                </tr>
+                            </template>
                         </template>
                     </tbody>
                 </table>

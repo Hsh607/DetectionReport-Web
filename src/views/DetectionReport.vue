@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <div class="report-container" style="padding: 20px; max-width: 1600px; margin: 0 auto;">
         <h2 style="text-align: center; margin-bottom: 30px;">
             {{ isDetail ? '报告详情' : isEdit ? '编辑检测报告' : '新增检测报告' }}
@@ -416,11 +416,11 @@
                     techSpecName: row.techSpecName,
                     schemeConfig,
                     reportData: {
-                        testReference: '', // ✅ 这里修复了！
+                        testReference: '', 
                         header: {},
                         tableData: [],
                         techRequirement: {},
-                        conclusion: '符合 / Qualified',
+                        conclusion: '',
                         note: '',
                         paramValues: {}
                     }
@@ -447,11 +447,11 @@
             techSpecName: '',
             schemeConfig: null,
             reportData: {
-                testReference: '', // ✅ 修复
+                testReference: '', 
                 header: {},
                 tableData: [],
                 techRequirement: {},
-                conclusion: '符合 / Qualified',
+                conclusion: '',
                 note: ''
             }
         })
@@ -534,7 +534,7 @@
                         testReference: rd.TestReference || '',
                         tableData: rd.TableData || [],
                         techRequirement: rd.TechRequirement || {},
-                        conclusion: rd.Conclusion || '符合 / Qualified',
+                        conclusion: rd.Conclusion ,
                         note: rd.Note || ''
                     }
 
