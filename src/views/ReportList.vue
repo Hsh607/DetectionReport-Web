@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <div style="padding: 20px; max-width: 1600px; margin: 0 auto;">
         <h2 style="text-align: center; margin-bottom: 20px;">检测报告管理</h2>
 
@@ -27,6 +27,7 @@
         <!-- 表格：补充创建人/创建时间/修改人/修改时间 -->
         <el-table :data="tableData" border stripe :loading="loading" style="width: 100%;">
             <el-table-column label="ID" prop="ID" width="80" align="center" />
+            <el-table-column label="报告编号" prop="reportNo" min-width="160" />
             <el-table-column label="报检单号" prop="inspectionOrderNo" min-width="160" />
             <el-table-column label="样品名称" prop="sampleName" min-width="150" />
             <el-table-column label="委托单号" prop="orderNo" min-width="160" />

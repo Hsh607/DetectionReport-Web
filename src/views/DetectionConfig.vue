@@ -562,15 +562,23 @@
                     <div style="font-weight:600;margin-bottom:10px;">{{ form.PhotoConfig.title }}</div>
                     <div style="border:1px solid #e6e6e6;padding:20px;text-align:center;color:#999;">照片区域</div>
                 </div>
+
+                <!-- 审批模块：纯预览展示，默认显示/，无输入框，和表格样式统一 -->
                 <div v-if="form.ApprovalItems.length>0" style="margin-top:20px;">
                     <table border="1" cellpadding="8" cellspacing="0" style="width:100%;border-collapse:collapse;">
                         <tbody>
                             <tr>
-                                <td v-for="item in form.ApprovalItems" :key="item.id" style="text-align:center;">
-                                    <div>{{ item.label }}</div>
-                                    <div style="font-size:12px;color:#666;">{{ item.enLabel }}</div>
-                                    <div style="height:30px;border-bottom:1px solid #ccc;margin-top:4px;"></div>
-                                </td>
+                                <template v-for="item in form.ApprovalItems" :key="item.id">
+                                    <!-- 审批名称列 -->
+                                    <td style="text-align:center; font-weight:500;">
+                                        {{ item.label }}
+                                        <div style="font-size:12px;color:#666;">{{ item.enLabel }}</div>
+                                    </td>
+                                    <!-- 审批值列：默认显示/，纯展示，无输入框 -->
+                                    <td style="text-align:center; width: 150px;">
+                                        {{ item.value || '/' }}
+                                    </td>
+                                </template>
                             </tr>
                         </tbody>
                     </table>

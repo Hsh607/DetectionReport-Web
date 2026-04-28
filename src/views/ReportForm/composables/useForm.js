@@ -9,7 +9,8 @@ export function useForm() {
         issueSpace: '',
         ClientName: '',
         ClientAddress: '',
-        ReceiptDate: '',
+        ReceiptDate: '', 
+        TestCycle: '', 
         ReportDate: ''
     })
 
@@ -56,10 +57,12 @@ export function useForm() {
         fixedForm.testEquipment.splice(index, 1)
     }
 
-    async function submitReport(testProjects, isEdit, id) {
+    // 🔥 已修复：接收 marginData 参数 + 保存项目间距 + 兼容旧数据
+    async function submitReport(testProjects, isEdit, id, marginData) {
         const validProjects = testProjects.filter(item => item.schemeConfig)
 
-        const submitProjects = validProjects.map(p => {
+        // 🔥 修复：添加 index，保存每个项目的间距
+        const submitProjects = validProjects.map((p, index) => {
             const data = JSON.parse(JSON.stringify(p))
             // 确保 paramValues 存在
             if (!data.reportData.paramValues) {
@@ -70,12 +73,19 @@ export function useForm() {
                 TestReferenceEn: data.schemeConfig?.TestReferenceEn || ''
             }
             data.reportData.bottomRequirement = data.reportData.bottomRequirement || {}
+
+            // 🔥 新增：保存当前检测项目的间距（兼容无数据情况）
+            data.projectMargin = marginData?.projectMargins?.[index] ?? 30
             return data
         })
 
         const submitData = {
             HomeInfo: homeForm,
-            FixedInfo: fixedForm,
+            FixedInfo: {
+                ...fixedForm,
+                // 🔥 修复：兼容 marginData 不存在的情况，不报错
+                MarginSettings: marginData ? marginData.fixedMargins : undefined
+            },
             TestProjects: submitProjects
         }
 
@@ -119,6 +129,7 @@ export function useForm() {
                 fixedFormRef.sampleSpec = fixed.sampleSpec || ''
                 fixedFormRef.additionalInfo = fixed.additionalInfo || ''
 
+                fixedFormRef.MarginSettings = fixed.MarginSettings || {};
                 fixedFormRef.testEnv = (fixed.testEnv || []).map(row => ({
                     ...row,
                     techSpecCode: row.techSpecCode ? Number(row.techSpecCode) : null
@@ -145,6 +156,8 @@ export function useForm() {
                         techSpecName: item.TechSpecName || '',
                         schemeConfig: schemeConfig,
                         showPhotoArea: schemeConfig.PhotoConfig?.enabled ?? false,
+                        ProjectMargin: item.ProjectMargin ?? 30,
+
                         reportData: {
                             Header: rd.Header || { TestReference: '', TestReferenceEn: '' },
                             testReference: rd.TestReference || '',
