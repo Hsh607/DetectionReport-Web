@@ -1,7 +1,7 @@
-<template>
+﻿<template>
     <el-container style="height: 100vh; border: 1px solid #eee;">
         <el-aside width="200px" style="background-color: #2e3b4e;">
-            <!-- 🔥 核心修改：default-active 改为动态绑定当前路由 -->
+            <!--绑定当前路由 -->
             <el-menu :default-active="route.path"
                      class="el-menu-vertical-demo"
                      background-color="#2e3b4e"
@@ -9,12 +9,7 @@
                      active-text-color="#ffd04b"
                      router
                      :unique-opened="true">
-                <el-menu-item index="/detection-env">
-                    <el-icon><Setting /></el-icon>
-                    <template #title>
-                        检测项目环境
-                    </template>
-                </el-menu-item>
+
                 <el-menu-item index="/tech-requirement/manage">
                     <el-icon><Setting /></el-icon>
                     <template #title>
@@ -31,6 +26,18 @@
                     <el-icon><Document /></el-icon>
                     <template #title>
                         检测报告管理
+                    </template>
+                </el-menu-item>
+                <el-menu-item index="/lab-data-query">
+                    <el-icon><Document /></el-icon>
+                    <template #title>
+                        实验室数据统计表
+                    </template>
+                </el-menu-item>
+                <el-menu-item index="/Ja-lab-data-query">
+                    <el-icon><Document /></el-icon>
+                    <template #title>
+                        吉安实验室数据统计表
                     </template>
                 </el-menu-item>
             </el-menu>
@@ -60,12 +67,12 @@
 
 <script setup>
     import { onMounted } from 'vue'
-    // 🔥 新增：导入路由对象
+    // 导入路由对象
     import { useRoute } from 'vue-router'
     import { Setting, Document } from '@element-plus/icons-vue'
     import axios from 'axios'
 
-    // 🔥 新增：获取当前路由
+    // 获取当前路由
     const route = useRoute()
 
     onMounted(() => {
@@ -74,11 +81,11 @@
         const userName = urlParams.get('userName')
 
         if (token) {
-            console.log("✅ 来自云表登录")
+            console.log("来自云表登录")
             localStorage.setItem('token', token)
             localStorage.setItem('username', userName || '云表用户')
         } else {
-            console.log("✅ 本地直接打开，使用默认账户")
+            console.log("本地直接打开，使用默认账户")
             localStorage.setItem('username', '测试管理员')
             localStorage.removeItem('token')
         }

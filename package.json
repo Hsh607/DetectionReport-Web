@@ -19,7 +19,8 @@
     "sortablejs": "^1.15.7",
     "vue": "^3.2.13",
     "vue-print-nb": "^1.7.5",
-    "vue-router": "^4.6.4"
+    "vue-router": "^4.6.4",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@babel/core": "^7.12.16",
@@ -27,6 +28,7 @@
     "@vue/cli-plugin-babel": "~5.0.0",
     "@vue/cli-plugin-eslint": "~5.0.0",
     "@vue/cli-service": "~5.0.0",
+    "babel-plugin-transform-remove-console": "^6.9.4",
     "eslint": "^7.32.0",
     "eslint-plugin-vue": "^8.0.3"
   },

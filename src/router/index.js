@@ -25,7 +25,6 @@ const routes = [
     {
         path: '/report/form',
         name: 'ReportForm',
-        // 🔥 核心修改：指向拆分后的 index.vue
         component: () => import('@/views/ReportForm/ReportForm.vue'),
         meta: { title: '检测报告录入' }
     },
@@ -41,6 +40,19 @@ const routes = [
         name: 'TechRequirementManage',
         component: () => import('@/views/TechRequirementManage.vue'),
         meta: { title: '技术要求管理', icon: 'el-icon-document' }
+    },
+    {
+        path: '/lab-data-query',
+        name: 'LabDataQuery',
+        component: () => import('@/views/LabDataQuery.vue'),
+        meta: { title: '实验室数据统计表' }
+    }
+    ,
+    {
+        path: '/Ja-lab-data-query',
+        name: 'JaLabDataQuery',
+        component: () => import('@/views/JaLabDataQuery.vue'),
+        meta: { title: '吉安实验室数据统计表' }
     }
 ]
 

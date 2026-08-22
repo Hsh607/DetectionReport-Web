@@ -1,16 +1,17 @@
 ﻿import { reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import axios from 'axios'
+import { autoGenerateMap } from '../utils/reportMapper'
 
 export function useForm() {
 
     const homeForm = reactive({
-        reportNo: '',
+        ReportNo: '',
         issueSpace: '',
         ClientName: '',
         ClientAddress: '',
-        ReceiptDate: '', 
-        TestCycle: '', 
+        ReceiptDate: '',
+        TestCycle: '',
         ReportDate: ''
     })
 
@@ -57,11 +58,11 @@ export function useForm() {
         fixedForm.testEquipment.splice(index, 1)
     }
 
-    // 🔥 已修复：接收 marginData 参数 + 保存项目间距 + 兼容旧数据
+    // 接收 marginData 参数 + 保存项目间距 + 兼容旧数据
     async function submitReport(testProjects, isEdit, id, marginData) {
         const validProjects = testProjects.filter(item => item.schemeConfig)
 
-        // 🔥 修复：添加 index，保存每个项目的间距
+        // 添加 index，保存每个项目的间距
         const submitProjects = validProjects.map((p, index) => {
             const data = JSON.parse(JSON.stringify(p))
             // 确保 paramValues 存在
@@ -72,9 +73,10 @@ export function useForm() {
                 TestReference: data.reportData.testReference || '',
                 TestReferenceEn: data.schemeConfig?.TestReferenceEn || ''
             }
-            data.reportData.bottomRequirement = data.reportData.bottomRequirement || {}
+            // ✅ 修复第1处：提交后端用大驼峰
+            data.reportData.BottomRequirement = data.reportData.bottomRequirement || {}
 
-            // 🔥 新增：保存当前检测项目的间距（兼容无数据情况）
+            // 保存当前检测项目的间距（兼容无数据情况）
             data.projectMargin = marginData?.projectMargins?.[index] ?? 30
             return data
         })
@@ -83,7 +85,7 @@ export function useForm() {
             HomeInfo: homeForm,
             FixedInfo: {
                 ...fixedForm,
-                // 🔥 修复：兼容 marginData 不存在的情况，不报错
+                // 兼容 marginData 不存在的情况，不报错
                 MarginSettings: marginData ? marginData.fixedMargins : undefined
             },
             TestProjects: submitProjects
@@ -110,10 +112,10 @@ export function useForm() {
         }
     }
 
-    async function loadReportDetail(id, testProjectsRef, fixedFormRef, homeFormRef) {
+    async function loadReportDetail(id, testProjectsRef, fixedFormRef, homeFormRef, projectDataCache) {
+        console.log('🔍 loadReportDetail 接收到的 projectDataCache:', projectDataCache);
+
         try {
-
-
             const res = await axios.get(`/api/DetectionReport/${id}`)
             if (res.data.Success) {
                 const data = res.data.Data
@@ -128,6 +130,7 @@ export function useForm() {
                 fixedFormRef.sampleMaterial = fixed.sampleMaterial || ''
                 fixedFormRef.sampleSpec = fixed.sampleSpec || ''
                 fixedFormRef.additionalInfo = fixed.additionalInfo || ''
+                fixedFormRef.sampleInfo = fixed.sampleInfo || ''
 
                 fixedFormRef.MarginSettings = fixed.MarginSettings || {};
                 fixedFormRef.testEnv = (fixed.testEnv || []).map(row => ({
@@ -139,13 +142,45 @@ export function useForm() {
                 // 清空并重新构建 testProjects
                 testProjectsRef.value = []
                 const projects = data.TestProjects || []
-                for (const item of projects) {
+
+                // ✅ 改为 for 循环，i 作为索引
+                for (let i = 0; i < projects.length; i++) {
+                    const item = projects[i]
                     const schemeConfig = typeof item.SchemeConfig === 'string'
                         ? JSON.parse(item.SchemeConfig)
                         : item.SchemeConfig
                     const rd = item.ReportData || {}
 
-                    if (item.ProjectCode === 'JCXMHJ-06') {  // 冲击试验的编码
+                    // 🔥 新增：转换 TableData 为字段名格式
+                    const { tableMap } = autoGenerateMap(schemeConfig)
+                    const idToField = {}
+                    Object.entries(tableMap).forEach(([field, id]) => {
+                        idToField[String(id)] = field
+                    })
+
+                    let convertedData = rd.TableData || []
+                    if (convertedData.length > 0) {
+                        const firstKeys = Object.keys(convertedData[0])
+                        const isIdFormat = firstKeys.length > 0 && /^\d+$/.test(firstKeys[0])
+                        if (isIdFormat) {
+                            convertedData = convertedData.map(row => {
+                                const newRow = {}
+                                Object.entries(row).forEach(([id, value]) => {
+                                    const field = idToField[String(id)]
+                                    if (field) newRow[field] = value
+                                })
+                                return newRow
+                            })
+                            console.log(`🔄 缓存 [${i}] 已转为字段名格式:`, convertedData)
+                        }
+                    }
+
+                    // 存入缓存（字段名格式）
+                    if (convertedData.length > 0) {
+                        projectDataCache.value[i] = convertedData
+                    }
+
+                    if (item.ProjectCode === 'JCXMHJ-06') {
                         console.log('冲击试验原始 ParamValues:', rd.ParamValues)
                         console.log('冲击试验模板 ParamItems:', schemeConfig.ParamItems)
                     }
@@ -164,7 +199,7 @@ export function useForm() {
                             tableData: rd.TableData || [],
                             techRequirement: rd.TechRequirement || {},
                             bottomRequirement: rd.BottomRequirement || {},
-                            conclusion: rd.Conclusion ,
+                            conclusion: rd.Conclusion,
                             note: rd.Note || '',
                             reviewer: rd.Reviewer || '',
                             approval: rd.Approval || {},

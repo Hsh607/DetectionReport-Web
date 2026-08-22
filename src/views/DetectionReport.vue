@@ -35,6 +35,14 @@
                     <el-form-item label="其余信息/Additional Information" style="grid-column: 1 / -1;">
                         <el-input v-model="fixedForm.additionalInfo" type="textarea" :rows="2" placeholder="请输入" clearable :disabled="isDetail" />
                     </el-form-item>
+                    <el-form-item label="样品信息/Sample Information" style="grid-column: 1 / -1;">
+                        <el-input v-model="fixedForm.sampleInfo"
+                                  type="textarea"
+                                  :rows="3"
+                                  placeholder="请输入样品信息，每行一个样品"
+                                  clearable
+                                  :disabled="isDetail" />
+                    </el-form-item>
                 </el-form>
             </div>
 
@@ -357,10 +365,10 @@
     const envList = ref([])
     const techSpecList = ref([])
 
-    // 🔥 修复：初始化完整结构，保证回显兼容
+    //  修复：初始化完整结构，保证回显兼容
     const fixedForm = reactive({
         sampleDesc: '', inspectionOrderNo: '', orderNo: '', materialSpec: '',
-        sampleName: '', sampleMaterial: '', sampleSpec: '', additionalInfo: '',
+        sampleName: '', sampleMaterial: '', sampleSpec: '', additionalInfo: '', sampleInfo: '', 
         testEnv: [{
             item: '', reqTemp: '', testTemp: '', reqHumidity: '', testHumidity: '',
             projectCode: '', projectId: null, techSpecCode: '', techSpecName: ''
@@ -381,42 +389,56 @@
 
     // 选择检测项目
     const onProjectCodeChange = (rowIndex, envCode) => {
+        console.log('🔥 onProjectCodeChange 执行', { rowIndex, envCode });
+        console.log(envList.value);
+
         const row = fixedForm.testEnv[rowIndex]
         const env = envList.value.find(item => item.EnvCode === envCode)
         if (env) {
-            row.item = env.ProjectName
+            row.item = env.FullName || env.ProjectName
             row.reqTemp = env.RequiredTemperature
             row.reqHumidity = env.RequiredHumidity
-            row.projectId = env.Id
+            row.projectCode = envCode
         }
         matchSchemeAndLoadTemplate(rowIndex)
     }
 
     // 选择技术要求
     const onTechSpecChange = (rowIndex, val) => {
+        console.log('onTechSpecChange 执行', { rowIndex, val });
+
         const row = fixedForm.testEnv[rowIndex]
         const tech = techSpecList.value.find(t => t.Id === val)
         row.techSpecName = tech ? tech.Name : ''
+        console.log("选择技术要求：" + row.techSpecName)
         matchSchemeAndLoadTemplate(rowIndex)
     }
 
     // 匹配模板
     const matchSchemeAndLoadTemplate = async (rowIndex) => {
+        console.log('🔥 matchSchemeAndLoadTemplate 执行', { rowIndex });
         const row = fixedForm.testEnv[rowIndex]
-        const { projectId, techSpecCode } = row
-        if (!projectId || !techSpecCode) return
+        const { projectCode, techSpecCode } = row   // 改用 projectCode
+        if (!projectCode || !techSpecCode) return
 
         try {
-            const res = await axios.get(`/api/DetectionConfig/scheme-by-id`, { params: { projectId, techSpecCode } })
+            // 调用 scheme-by-code 接口（与 useTestProject 保持一致）
+            const res = await axios.get(`/api/DetectionConfig/scheme-by-code`, {
+                params: { projectCode, techSpecCode }
+            })
             if (res.data.Success && res.data.Data) {
                 const schemeConfig = JSON.parse(res.data.Data.ConfigContent || '{}')
+
+                console.log('加载到的模板配置:', schemeConfig)
+                console.log('ProjectTitle:', schemeConfig.ProjectTitle)  // 查看标题
+
                 testProjects.value[rowIndex] = {
                     projectCode: row.projectCode,
                     techSpecCode,
                     techSpecName: row.techSpecName,
                     schemeConfig,
                     reportData: {
-                        testReference: '', 
+                        testReference: '',
                         header: {},
                         tableData: [],
                         techRequirement: {},
@@ -476,7 +498,7 @@
     const deleteTableRow = (pIndex, rIndex) => testProjects.value[pIndex].reportData.tableData.splice(rIndex, 1)
     const back = () => router.push('/report/list')
 
-    // 提交 ✅ 完全修复
+    // 提交  
     const submitReport = async () => {
         if (!fixedForm.inspectionOrderNo) { ElMessage.warning('请填写报检单号'); return }
         const emptyEnv = fixedForm.testEnv.some(t => !t.projectCode || !t.techSpecCode)
@@ -502,13 +524,15 @@
         }
     }
 
-    // ===================== 🔥 核心修复：编辑页回显方法 =====================
-    // ===================== 🔥 终极修复：回显方法 =====================
+    // ================回显方法 =====================
     const getDetail = async () => {
         try {
             const res = await axios.get(`/api/DetectionReport/${id}`)
             if (res.data.Success) {
                 const data = res.data.Data;
+                console.log('sampleInfo1111111111111111111111111111===============================:', data)
+
+                console.log('sampleInfo1111111111111111111111111111===============================:', fixedForm.sampleInfo)
 
                 fixedForm.sampleDesc = data.FixedInfo?.sampleDesc || ''
                 fixedForm.inspectionOrderNo = data.FixedInfo?.inspectionOrderNo || ''
@@ -518,10 +542,11 @@
                 fixedForm.sampleMaterial = data.FixedInfo?.sampleMaterial || ''
                 fixedForm.sampleSpec = data.FixedInfo?.sampleSpec || ''
                 fixedForm.additionalInfo = data.FixedInfo?.additionalInfo || ''
+                fixedForm.sampleInfo = data.FixedInfo?.sampleInfo || ''
                 fixedForm.testEnv = data.FixedInfo?.testEnv || []
                 fixedForm.testEquipment = data.FixedInfo?.testEquipment || []
 
-                // ✅ 终极修复：适配后端大驼峰字段，100%读取
+                // ✅ 终极修复：适配后端大驼峰字段，100%读取111
                 testProjects.value = (data.TestProjects || []).map(item => {
                     if (typeof item.SchemeConfig === 'string') {
                         item.SchemeConfig = JSON.parse(item.SchemeConfig)
@@ -553,6 +578,8 @@
 
     // 初始化
     onMounted(() => {
+        console.log('🔥🔥🔥 onMounted 执行了！！！')
+
         axios.get('/api/DetectionConfig/env-project-list').then(res => {
             if (res.data.Success) envList.value = res.data.Data
         })

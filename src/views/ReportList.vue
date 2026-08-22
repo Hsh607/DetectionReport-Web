@@ -5,11 +5,19 @@
         <!-- 查询条件 -->
         <div style="background: #fafafa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
             <el-form :inline="true" :model="queryForm">
+                <el-form-item label="所属厂区">
+                    <el-select v-model="queryForm.factoryCode" placeholder="全部" clearable style="width: 150px;">
+                        <el-option label="全部" value="" />
+                        <el-option label="苏州诺码" value="SZNM" />
+                        <el-option label="吉安诺码" value="JANM" />
+                        <el-option label="其他诺码" value="XCNM" />
+                    </el-select>
+                </el-form-item>
                 <el-form-item label="报检单号">
                     <el-input v-model="queryForm.inspectionOrderNo" placeholder="请输入" clearable />
                 </el-form-item>
-                <el-form-item label="样品名称">
-                    <el-input v-model="queryForm.sampleName" placeholder="请输入" clearable />
+                <el-form-item label="报告编号">
+                    <el-input v-model="queryForm.reportNo" placeholder="请输入" clearable />
                 </el-form-item>
                 <el-form-item>
                     <el-button type="primary" @click="getList">查询</el-button>
@@ -28,21 +36,17 @@
         <el-table :data="tableData" border stripe :loading="loading" style="width: 100%;">
             <el-table-column label="ID" prop="ID" width="80" align="center" />
             <el-table-column label="报告编号" prop="reportNo" min-width="160" />
-            <el-table-column label="报检单号" prop="inspectionOrderNo" min-width="160" />
+            <el-table-column label="报检单号" prop="inspectionOrderNo" min-width="200" />
             <el-table-column label="样品名称" prop="sampleName" min-width="150" />
             <el-table-column label="委托单号" prop="orderNo" min-width="160" />
-
-            <!-- 补充：创建人 -->
+            <el-table-column label="所属厂区" prop="factoryName" min-width="120" align="center" />
             <el-table-column label="创建人" prop="createName" min-width="120" align="center" />
-            <!-- 创建时间列 -->
             <el-table-column label="创建时间" prop="createTime" min-width="180" align="center">
                 <template #default="{ row }">
                     {{ formatDate(row.createTime) }}
                 </template>
             </el-table-column>
-            <!-- 补充：修改人 -->
             <el-table-column label="修改人" prop="updateName" min-width="120" align="center" />
-            <!-- 修改时间列 -->
             <el-table-column label="修改时间" prop="updateTime" min-width="180" align="center">
                 <template #default="{ row }">
                     {{ formatDate(row.updateTime) }}
@@ -85,7 +89,8 @@
     const pageSize = ref(10)
     const queryForm = ref({
         inspectionOrderNo: '',
-        sampleName: ''
+        reportNo: '',
+        factoryCode: '' 
     })
 
     // 时间格式化方法：兼容创建时间/修改时间
@@ -161,7 +166,7 @@
 
     // 重置查询
     const resetQuery = () => {
-        queryForm.value = { inspectionOrderNo: '', sampleName: '' }
+        queryForm.value = { inspectionOrderNo: '', reportNo: '',factoryCode: '' }
         pageIndex.value = 1
         getList()
     }

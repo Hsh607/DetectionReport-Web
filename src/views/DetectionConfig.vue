@@ -847,10 +847,17 @@
     // ========== 弹窗 ==========
     const showAddDialog = () => {
         isEdit.value = false
+
+        const baseId = Date.now()
+
         Object.assign(form, {
             SchemeId: 0, SchemeName: '', techSpec_code: null, ProjectTitle: '', ProjectEnTitle: '', TestReference: '', TestReferenceEn: '',
             GroupHeaders: [], BaseColumns: [], ExtendColumns: [], FooterColumns: [], PhotoConfig: { enabled: false, title: '照片' },
-            ApprovalItems: [], ConfigVersion: 1, IsActive: false, ParamItems: []
+            ApprovalItems: [
+                { id: baseId, label: '编       制:', enLabel: 'Compiled by' },
+                { id: baseId + 1, label: '审       核:', enLabel: 'Reviewed by' },
+                { id: baseId + 2, label: '批       准:', enLabel: 'Approved by' }
+            ], ConfigVersion: 1, IsActive: false, ParamItems: []
         })
         if (selectedProjectCode.value) loadYunbiaoFields(selectedProjectName.value)
         dialogVisible.value = true

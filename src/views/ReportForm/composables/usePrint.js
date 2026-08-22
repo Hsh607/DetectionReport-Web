@@ -41,7 +41,7 @@ export function usePrint() {
 
             const html = generatePrintHTML(homeForm, fixedForm, projectsCopy, watermarkText, isCNAS)
 
-            // ✅ 直接访问后端预览接口，云表自动显示
+            // 直接访问后端预览接口，云表自动显示
             const url = `/api/DetectionReport/PreviewPdfInline`
             const form = document.createElement('form')
             form.method = 'POST'
