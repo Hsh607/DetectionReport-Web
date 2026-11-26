@@ -27,6 +27,540 @@ export function useTestProject() {
         }
     }
 
+    /** 复制一个室温拉伸分组（插到当前组后面） */
+    function cloneTensileGroup(projectIndex, groupIndex) {
+        const project = testProjects.value[projectIndex];
+        const groups = project?.reportData?.tensileGroups;
+        if (!groups || !groups[groupIndex]) return;
+
+        const source = groups[groupIndex];
+
+        // 深拷贝，避免引用共享
+        const cloned = JSON.parse(JSON.stringify(source));
+
+        // 组名自动加序号，避免重名
+        cloned.groupLabel = `${source.groupLabel} (副本)`;
+
+        // 插入到当前组后面
+        groups.splice(groupIndex + 1, 0, cloned);
+
+        // 保险：确保分组模式开启
+        project.reportData.isTensileGrouped = true;
+
+        ElMessage.success('已复制当前分组');
+    }
+
+    /** 把单表格提升为多分组模式（复制当前表格为新组） */
+    function copyTensileTableAsGroup(projectIndex) {
+        const project = testProjects.value[projectIndex];
+        if (!project?.schemeConfig) return;
+
+        const currentData = project.reportData.tableData || [];
+        if (currentData.length === 0) {
+            ElMessage.warning('当前表格无数据可复制');
+            return;
+        }
+
+        // 深拷贝，避免共享引用
+        const clonedData = JSON.parse(JSON.stringify(currentData));
+
+        // 当前数据作为第 1 组
+        const firstGroup = {
+            groupLabel: '技术要求组 1',
+            techRequirements: JSON.parse(JSON.stringify(project.reportData.techRequirement || {})),
+            tableData: currentData,
+            conclusion: project.reportData.conclusion || '',
+            note: project.reportData.note || '',
+            bottomRequirement: JSON.parse(JSON.stringify(project.reportData.bottomRequirement || {})),
+            marginTop: 5
+        };
+
+        // 复制为第 2 组
+        const secondGroup = {
+            groupLabel: '技术要求组 2',
+            techRequirements: JSON.parse(JSON.stringify(project.reportData.techRequirement || {})),
+            tableData: clonedData,
+            conclusion: project.reportData.conclusion || '',
+            note: project.reportData.note || '',
+            bottomRequirement: JSON.parse(JSON.stringify(project.reportData.bottomRequirement || {})),
+            marginTop: 5
+        };
+
+        project.reportData.tensileGroups = [firstGroup, secondGroup];
+        project.reportData.isTensileGrouped = true;
+        project.reportData.tableData = [];   //  清空，避免双重渲染
+
+        ElMessage.success('已复制为新表格');
+    }
+
+    // ==================== 点腐蚀 / 晶间腐蚀：分组操作 ====================
+
+    /** 把单表格提升为多分组模式（复制当前表格为新组） */
+    function copyCorrosionTableAsGroup(projectIndex) {
+        const project = testProjects.value[projectIndex]
+        if (!project?.schemeConfig) return
+
+        const rd = project.reportData || (project.reportData = {})
+
+        // 已有分组：直接再复制一组
+        if (rd.isCorrosionGrouped && Array.isArray(rd.corrosionGroups) && rd.corrosionGroups.length > 0) {
+            const last = rd.corrosionGroups[rd.corrosionGroups.length - 1]
+            rd.corrosionGroups.push({
+                groupLabel: `表格 ${rd.corrosionGroups.length + 1}`,
+                marginTop: 5,
+                tableData: JSON.parse(JSON.stringify(last.tableData || [])),
+                techRequirement: typeof last.techRequirement === 'string' ? last.techRequirement : '',
+                conclusion: last.conclusion || '',
+                note: last.note || '',
+                bottomRequirement: JSON.parse(JSON.stringify(last.bottomRequirement || {}))
+            })
+            ElMessage.success('已复制为新表格')
+            return
+        }
+
+        // 首次：单表格  第 1 组 + 复制出第 2 组
+        const currentData = rd.tableData || []
+        if (currentData.length === 0) {
+            ElMessage.warning('当前表格无数据可复制')
+            return
+        }
+
+        const firstGroup = {
+            groupLabel: '表格 1',
+            marginTop: 5,
+            tableData: currentData,
+            techRequirement: typeof rd.techRequirement === 'string' ? rd.techRequirement : '',
+            conclusion: rd.conclusion || '',
+            note: rd.note || '',
+            bottomRequirement: JSON.parse(JSON.stringify(rd.bottomRequirement || {}))
+        }
+        const secondGroup = {
+            groupLabel: '表格 2',
+            marginTop: 5,
+            tableData: JSON.parse(JSON.stringify(currentData)),
+            techRequirement: typeof rd.techRequirement === 'string' ? rd.techRequirement : '',
+            conclusion: rd.conclusion || '',
+            note: rd.note || '',
+            bottomRequirement: JSON.parse(JSON.stringify(rd.bottomRequirement || {}))
+        }
+
+        rd.corrosionGroups = [firstGroup, secondGroup]
+        rd.isCorrosionGrouped = true
+        rd.tableData = []   // 清空，避免双重渲染
+
+        ElMessage.success('已复制为新表格')
+    }
+
+    /** 复制一个腐蚀分组（插到当前组后面） */
+    function cloneCorrosionGroup(projectIndex, groupIndex) {
+        const project = testProjects.value[projectIndex]
+        const groups = project?.reportData?.corrosionGroups
+        if (!groups || !groups[groupIndex]) return
+
+        const source = groups[groupIndex]
+        const cloned = JSON.parse(JSON.stringify(source))
+        cloned.groupLabel = `${source.groupLabel || '表格'} (副本)`
+
+        groups.splice(groupIndex + 1, 0, cloned)
+        project.reportData.isCorrosionGrouped = true
+
+        ElMessage.success('已复制当前表格')
+    }
+
+    /** 删除整个腐蚀分组 */
+    function deleteCorrosionGroup(projectIndex, groupIndex) {
+        const project = testProjects.value[projectIndex]
+        if (!project?.reportData?.corrosionGroups) return
+
+        project.reportData.corrosionGroups.splice(groupIndex, 1)
+        if (project.reportData.corrosionGroups.length === 0) {
+            project.reportData.isCorrosionGrouped = false
+        }
+    }
+
+    /** 新增腐蚀分组行 */
+    function addCorrosionRow(projectIndex, groupIndex) {
+        const project = testProjects.value[projectIndex]
+        if (!project?.schemeConfig) {
+            ElMessage.warning('请先加载模板')
+            return
+        }
+        const group = project.reportData.corrosionGroups?.[groupIndex]
+        if (!group) return
+
+        const newRow = {}
+        const allCols = [
+            ...(project.schemeConfig.BaseColumns || []),
+            ...(project.schemeConfig.ExtendColumns || [])
+        ]
+        allCols.forEach(col => newRow[col.id] = '')
+        group.tableData.push(newRow)
+    }
+
+    /** 删除腐蚀分组行 */
+    function deleteCorrosionRow(projectIndex, groupIndex, rowIndex) {
+        const project = testProjects.value[projectIndex]
+        const group = project.reportData.corrosionGroups?.[groupIndex]
+        if (!group) return
+
+        group.tableData.splice(rowIndex, 1)
+
+        if (group.tableData.length === 0) {
+            project.reportData.corrosionGroups.splice(groupIndex, 1)
+            if (project.reportData.corrosionGroups.length === 0) {
+                project.reportData.isCorrosionGrouped = false
+            }
+        }
+    }
+
+    // ==================== 非金属夹杂物：分组操作 ====================
+
+    function isInclusionProject(project) {
+        const title = project?.schemeConfig?.ProjectTitle || ''
+        return title.includes('非金属夹杂物') || project?.projectCode === 'JCXMHJ-16'
+    }
+
+    /** 单表格 → 多分组 */
+    function copyInclusionTableAsGroup(projectIndex) {
+        const project = testProjects.value[projectIndex]
+        if (!project?.schemeConfig) return
+        const rd = project.reportData || (project.reportData = {})
+
+        // 已有分组：直接追加一组
+        if (rd.isInclusionGrouped && rd.inclusionGroups?.length > 0) {
+            const last = rd.inclusionGroups[rd.inclusionGroups.length - 1]
+            rd.inclusionGroups.push({
+                groupLabel: `表格 ${rd.inclusionGroups.length + 1}`,
+                marginTop: 5,
+                tableData: JSON.parse(JSON.stringify(last.tableData || [])),
+                techRequirement: JSON.parse(JSON.stringify(last.techRequirement || {})),
+                conclusion: last.conclusion || '',
+                note: last.note || '',
+                bottomRequirement: JSON.parse(JSON.stringify(last.bottomRequirement || {}))
+            })
+            ElMessage.success('已复制为新表格')
+            return
+        }
+
+        // 首次：单表 → 2组
+        const currentData = rd.tableData || []
+        if (currentData.length === 0) {
+            ElMessage.warning('当前表格无数据可复制')
+            return
+        }
+
+        const firstGroup = {
+            groupLabel: '表格 1',
+            marginTop: 5,
+            tableData: currentData,
+            techRequirement: JSON.parse(JSON.stringify(rd.techRequirement || {})),
+            conclusion: rd.conclusion || '',
+            note: rd.note || '',
+            bottomRequirement: JSON.parse(JSON.stringify(rd.bottomRequirement || {}))
+        }
+        const secondGroup = JSON.parse(JSON.stringify(firstGroup))
+        secondGroup.groupLabel = '表格 2'
+        secondGroup.tableData = JSON.parse(JSON.stringify(currentData))
+
+        rd.inclusionGroups = [firstGroup, secondGroup]
+        rd.isInclusionGrouped = true
+        rd.tableData = []
+
+        ElMessage.success('已复制为新表格')
+    }
+
+    /** 复制本组 */
+    function cloneInclusionGroup(projectIndex, groupIndex) {
+        const project = testProjects.value[projectIndex]
+        const groups = project?.reportData?.inclusionGroups
+        if (!groups || !groups[groupIndex]) return
+        const cloned = JSON.parse(JSON.stringify(groups[groupIndex]))
+        cloned.groupLabel = `${groups[groupIndex].groupLabel || '表格'} (副本)`
+        groups.splice(groupIndex + 1, 0, cloned)
+        ElMessage.success('已复制当前分组')
+    }
+
+    /** 删除本组 */
+    function deleteInclusionGroup(projectIndex, groupIndex) {
+        const project = testProjects.value[projectIndex]
+        if (!project?.reportData?.inclusionGroups) return
+        project.reportData.inclusionGroups.splice(groupIndex, 1)
+        if (project.reportData.inclusionGroups.length === 0) {
+            project.reportData.isInclusionGrouped = false
+        }
+    }
+
+    /** 新增行 */
+    function addInclusionRow(projectIndex, groupIndex) {
+        const project = testProjects.value[projectIndex]
+        if (!project?.schemeConfig) return
+        const group = project.reportData.inclusionGroups?.[groupIndex]
+        if (!group) return
+
+        const newRow = {}
+        const allCols = [
+            ...(project.schemeConfig.BaseColumns || []),
+            ...(project.schemeConfig.ExtendColumns || [])
+        ]
+        allCols.forEach(col => {
+            if (col.subColumns?.length > 0) {
+                col.subColumns.forEach(sub => newRow[sub.id] = '')
+            } else {
+                newRow[col.id] = ''
+            }
+        })
+        group.tableData.push(newRow)
+    }
+
+    /** 删除行 */
+    function deleteInclusionRow(projectIndex, groupIndex, rowIndex) {
+        const project = testProjects.value[projectIndex]
+        const group = project.reportData.inclusionGroups?.[groupIndex]
+        if (!group) return
+        group.tableData.splice(rowIndex, 1)
+        if (group.tableData.length === 0) {
+            project.reportData.inclusionGroups.splice(groupIndex, 1)
+            if (project.reportData.inclusionGroups.length === 0) {
+                project.reportData.isInclusionGrouped = false
+            }
+        }
+    }
+
+    // ==================== 化学成分：分组操作 ====================
+
+    /** 单表格 → 多分组 */
+    function copyChemTableAsGroup(projectIndex) {
+        console.log(' 1. 进入 copyChemTableAsGroup');
+
+        const project = testProjects.value[projectIndex]
+        if (!project?.schemeConfig) return
+        const rd = project.reportData || (project.reportData = {})
+
+        // 已有分组：直接追加一组
+        if (rd.isChemGrouped && rd.chemGroups?.length > 0) {
+            const last = rd.chemGroups[rd.chemGroups.length - 1]
+            rd.chemGroups.push({
+                groupLabel: `表格 ${rd.chemGroups.length + 1}`,
+                marginTop: 5,
+                tableData: JSON.parse(JSON.stringify(last.tableData || [])),
+                // 动态列的 subColumns 也一并复制
+                dynamicSubColumns: JSON.parse(JSON.stringify(last.dynamicSubColumns || [])),
+                techRequirement: JSON.parse(JSON.stringify(last.techRequirement || {})),
+                conclusion: last.conclusion || '',
+                note: last.note || '',
+                bottomRequirement: JSON.parse(JSON.stringify(last.bottomRequirement || {}))
+            })
+            ElMessage.success('已复制为新表格')
+            return
+        }
+
+        // 首次：单表 → 2组
+        const currentData = rd.tableData || []
+        if (currentData.length === 0) {
+            ElMessage.warning('当前表格无数据可复制')
+            return
+        }
+
+        // 获取当前动态列的 subColumns
+        const dynamicCol = project.schemeConfig.ExtendColumns?.find(col => col.isDynamic)
+        const currentSubCols = dynamicCol?.subColumns || []
+
+        const firstGroup = {
+            groupLabel: '表格 1',
+            marginTop: 5,
+            tableData: currentData,
+            dynamicSubColumns: currentSubCols,
+            techRequirement: JSON.parse(JSON.stringify(rd.techRequirement || {})),
+            conclusion: rd.conclusion || '',
+            note: rd.note || '',
+            bottomRequirement: JSON.parse(JSON.stringify(rd.bottomRequirement || {}))
+        }
+        const secondGroup = JSON.parse(JSON.stringify(firstGroup))
+        secondGroup.groupLabel = '表格 2'
+        secondGroup.tableData = JSON.parse(JSON.stringify(currentData))
+
+        rd.chemGroups = [firstGroup, secondGroup]
+        rd.isChemGrouped = true
+        rd.tableData = []
+
+        ElMessage.success('已复制为新表格')
+    }
+
+    /** 复制本组 */
+    function cloneChemGroup(projectIndex, groupIndex) {
+        const project = testProjects.value[projectIndex]
+        const groups = project?.reportData?.chemGroups
+        if (!groups || !groups[groupIndex]) return
+        const cloned = JSON.parse(JSON.stringify(groups[groupIndex]))
+        cloned.groupLabel = `${groups[groupIndex].groupLabel || '表格'} (副本)`
+        groups.splice(groupIndex + 1, 0, cloned)
+        ElMessage.success('已复制当前分组')
+    }
+
+    /** 删除本组 */
+    function deleteChemGroup(projectIndex, groupIndex) {
+        const project = testProjects.value[projectIndex]
+        if (!project?.reportData?.chemGroups) return
+        project.reportData.chemGroups.splice(groupIndex, 1)
+        if (project.reportData.chemGroups.length === 0) {
+            project.reportData.isChemGrouped = false
+        }
+    }
+
+    /** 新增行 */
+    function addChemRow(projectIndex, groupIndex) {
+        const project = testProjects.value[projectIndex]
+        if (!project?.schemeConfig) return
+        const group = project.reportData.chemGroups?.[groupIndex]
+        if (!group) return
+
+        const newRow = {}
+            // 基础列
+            ; (project.schemeConfig.BaseColumns || []).forEach(col => {
+                newRow[col.id] = ''
+            })
+        // 动态列的子列（试样编号）
+        if (group.dynamicSubColumns) {
+            group.dynamicSubColumns.forEach(sub => {
+                newRow[sub.id] = ''
+            })
+        }
+        // 扩展列（技术要求、结论等）
+         (project.schemeConfig.ExtendColumns || []).forEach(col => {
+            if (!col.isDynamic) {
+                newRow[col.id] = ''
+            }
+        })
+        group.tableData.push(newRow)
+    }
+
+    /** 删除行 */
+    function deleteChemRow(projectIndex, groupIndex, rowIndex) {
+        const project = testProjects.value[projectIndex]
+        const group = project.reportData.chemGroups?.[groupIndex]
+        if (!group) return
+        group.tableData.splice(rowIndex, 1)
+        if (group.tableData.length === 0) {
+            project.reportData.chemGroups.splice(groupIndex, 1)
+            if (project.reportData.chemGroups.length === 0) {
+                project.reportData.isChemGrouped = false
+            }
+        }
+    }
+
+    // ==================== 金相检验：分组操作 ====================
+
+    /** 单表格 → 多分组 */
+    /** 单表格 → 多分组 */
+    /** 单表格 → 多分组 */
+    function copyMetallographicTableAsGroup(projectIndex) {
+        const project = testProjects.value[projectIndex]
+        if (!project?.schemeConfig) return
+        const rd = project.reportData || (project.reportData = {})
+
+        // ⭐ 全部改回小写
+        if (rd.isMetallographicGrouped && rd.metallographicGroups?.length > 0) {
+            const last = rd.metallographicGroups[rd.metallographicGroups.length - 1]
+            rd.metallographicGroups.push({
+                groupLabel: `表格 ${rd.metallographicGroups.length + 1}`,
+                marginTop: 5,
+                tableData: JSON.parse(JSON.stringify(last.tableData || [])),
+                techRequirement: JSON.parse(JSON.stringify(last.techRequirement || {})),
+                conclusion: last.conclusion || '',
+                note: last.note || '',
+                bottomRequirement: JSON.parse(JSON.stringify(last.bottomRequirement || {})),
+                testReference: last.testReference || rd.testReference || '' // ⭐ 小写
+            })
+            ElMessage.success('已复制为新表格')
+            return
+        }
+
+        const currentData = rd.tableData || []
+        if (currentData.length === 0) {
+            ElMessage.warning('当前表格无数据可复制')
+            return
+        }
+
+        const firstGroup = {
+            groupLabel: '表格 1',
+            marginTop: 5,
+            tableData: currentData,
+            techRequirement: JSON.parse(JSON.stringify(rd.techRequirement || {})),
+            conclusion: rd.conclusion || '',
+            note: rd.note || '',
+            bottomRequirement: JSON.parse(JSON.stringify(rd.bottomRequirement || {})),
+            testReference: rd.testReference || ''
+        }
+        const secondGroup = JSON.parse(JSON.stringify(firstGroup))
+        secondGroup.groupLabel = '表格 2'
+        secondGroup.tableData = JSON.parse(JSON.stringify(currentData))
+
+        rd.metallographicGroups = [firstGroup, secondGroup] // ⭐ 小写
+        rd.isMetallographicGrouped = true
+        rd.tableData = []
+
+        ElMessage.success('已复制为新表格')
+    }
+
+    /** 复制本组 */
+    function cloneMetallographicGroup(projectIndex, groupIndex) {
+        const project = testProjects.value[projectIndex]
+        const groups = project?.reportData?.metallographicGroups
+        if (!groups || !groups[groupIndex]) return
+        const cloned = JSON.parse(JSON.stringify(groups[groupIndex]))
+        cloned.groupLabel = `${groups[groupIndex].groupLabel || '表格'} (副本)`
+        groups.splice(groupIndex + 1, 0, cloned)
+        ElMessage.success('已复制当前分组')
+    }
+
+    /** 删除本组 */
+    function deleteMetallographicGroup(projectIndex, groupIndex) {
+        const project = testProjects.value[projectIndex]
+        if (!project?.reportData?.metallographicGroups) return
+        project.reportData.metallographicGroups.splice(groupIndex, 1)
+        if (project.reportData.metallographicGroups.length === 0) {
+            project.reportData.isMetallographicGrouped = false
+        }
+    }
+
+    /** 新增行 */
+    function addMetallographicRow(projectIndex, groupIndex) {
+        const project = testProjects.value[projectIndex]
+        if (!project?.schemeConfig) return
+        const group = project.reportData.metallographicGroups?.[groupIndex]
+        if (!group) return
+
+        const newRow = {}
+        const allCols = [
+            ...(project.schemeConfig.BaseColumns || []),
+            ...(project.schemeConfig.ExtendColumns || [])
+        ]
+        allCols.forEach(col => {
+            if (col.subColumns?.length > 0) {
+                col.subColumns.forEach(sub => newRow[sub.id] = '')
+            } else {
+                newRow[col.id] = ''
+            }
+        })
+        group.tableData.push(newRow)
+    }
+
+    /** 删除行 */
+    function deleteMetallographicRow(projectIndex, groupIndex, rowIndex) {
+        const project = testProjects.value[projectIndex]
+        const group = project.reportData.metallographicGroups?.[groupIndex]
+        if (!group) return
+        group.tableData.splice(rowIndex, 1)
+        if (group.tableData.length === 0) {
+            project.reportData.metallographicGroups.splice(groupIndex, 1)
+            if (project.reportData.metallographicGroups.length === 0) {
+                project.reportData.isMetallographicGrouped = false
+            }
+        }
+    }
+
+
+
     // 检测依据缓存
     async function getTestReferenceByOrderNo(orderNo) {
         testReferenceCache.value = {}
@@ -45,6 +579,7 @@ export function useTestProject() {
     }
 
     // 获取已报检项目列表并构建 testEnv 和 testProjects 占位
+    // 获取已报检项目列表并构建 testEnv 和 testProjects 占位
     async function getInspectionListByOrderNo(orderNo, inspectionNo) {
         if (!orderNo) return []
         try {
@@ -56,7 +591,23 @@ export function useTestProject() {
             if (itemList.length === 0) {
                 ElMessage.info("未查询到报检项目")
             }
-            return itemList // 🔧 修复：确保返回 itemList
+
+            // ✅ 化学成分置底
+            // ⚠️ 原始数据字段是「项目名称」，不是 item
+            const sortedList = itemList
+                .map((item, index) => {
+                    const name = item?.["项目名称"] || item?.["项目名"] || ''
+                    return {
+                        item,
+                        index,
+                        weight: /化学成分/.test(name) ? 1 : 0
+                    }
+                })
+                .sort((a, b) => a.weight - b.weight || a.index - b.index)
+                .map(({ item }) => item)
+
+            console.log('📋 排序后项目顺序:', sortedList.map(i => (i["项目名称"] || '').replace(/\n/g, ' ')))
+            return sortedList
         } catch (err) {
             ElMessage.error("查询已报检项目失败")
             return []
@@ -158,7 +709,8 @@ export function useTestProject() {
                     reviewer: "",
                     approval: {},
                     paramValues: {},
-                    photoRows: [{ LeftUrl: "", LeftDesc: "", RightUrl: "", RightDesc: "" }]
+                    photoRows: [{ LeftUrl: "", LeftDesc: "", RightUrl: "", RightDesc: "", marginTop: 2.65 }]
+
                 }
             });
         }
@@ -177,6 +729,11 @@ export function useTestProject() {
                 console.log('📋 加载到的模板标题:', schemeConfig.ProjectTitle)
                 const row = testEnv[rowIndex]
 
+                const _title = schemeConfig?.ProjectTitle || ''
+                const _isCorrosion = _title.includes('点腐蚀') || _title.includes('晶间腐蚀')
+
+                //备份已有审批数据（切换模板时保留审批区域）
+                const oldRd = testProjectsRef.value[rowIndex]?.reportData || {}
                 // 直接覆盖该索引的对象（保留原有引用，但完全替换）
                 testProjectsRef.value[rowIndex] = {
                     ...testProjectsRef.value[rowIndex],
@@ -189,18 +746,35 @@ export function useTestProject() {
                         Header: { TestReference: "", TestReferenceEn: "" },
                         testReference: "",
                         tableData: [],
-                        techRequirement: {},
+                        techRequirement: _isCorrosion ? '' : {}, 
                         bottomRequirement: {},
                         conclusion: "",
                         note: "",
-                        reviewer: "",
-                        approval: {},
                         paramValues: {},
                         photoRows: [{ LeftUrl: "", LeftDesc: "", RightUrl: "", RightDesc: "" }],
-                        impactGroups: [],          // ✅ 强制重置
+                        impactGroups: [],          //  强制重置
                         isImpactGrouped: false,
+                        inclusionGroups: [],
+                        isInclusionGrouped: false,
                         ferriteGroups: [],
-                        isFerriteGrouped: false
+                        isFerriteGrouped: false,
+                        corrosionGroups: [],
+                        isCorrosionGrouped: false,
+                        chemGroups: [],
+                        isChemGrouped: false,
+                        metallographicGroups: [],
+                        isMetallographicGrouped: false,
+                        // ⭐ 保留审批相关数据（业务上切换模板不清空审批区域）
+                        reviewer: oldRd.reviewer || '',
+                        approver: oldRd.approver || '',
+                        reviewStatus: oldRd.reviewStatus || 'pending',
+                        approvalStatus: oldRd.approvalStatus || 'pending',
+                        approval: oldRd.approval || {},
+                        signatureItems: oldRd.signatureItems || oldRd.SignatureItems || [],
+                        signatureBlocks: oldRd.signatureBlocks || oldRd.SignatureBlocks || [],
+                        compiledSignatureUrl: oldRd.compiledSignatureUrl || '',
+                        reviewSignatureUrl: oldRd.reviewSignatureUrl || '',
+                        approvalSignatureUrl: oldRd.approvalSignatureUrl || ''
                     }
                 }
 
@@ -211,7 +785,29 @@ export function useTestProject() {
                 }
 
                 // 数据回填
-                const cachedData = projectDataCache.value[rowIndex]
+                let cachedData = projectDataCache.value[rowIndex]
+
+                // ========== 新增：如果缓存为空，尝试从云表接口获取数据 ==========
+                if ((!cachedData || cachedData.length === 0) && orderNo && inspectionNo) {
+                    try {
+                        const row = testEnv[rowIndex]
+                        const projectType = getProjectType(row.item)
+                        const dataRes = await axios.post(`/api/yunbiao/report-data/${projectType}`, {
+                            orderNo,
+                            inspectionNo: inspectionNo
+                        })
+                        if (dataRes?.data) {
+                            cachedData = Array.isArray(dataRes.data) ? dataRes.data : [dataRes.data]
+                            // 存入缓存，下次直接用
+                            projectDataCache.value[rowIndex] = cachedData
+                            console.log('✅ 从云表接口获取数据成功，已存入缓存')
+                        }
+                    } catch (err) {
+                        console.warn('⚠️ 云表接口请求失败', err)
+                    }
+                }
+                // ========== 新增结束 ==========
+
                 if (cachedData && Array.isArray(cachedData)) {
                     const project = testProjectsRef.value[rowIndex]
                     const { tableMap, paramMap } = autoGenerateMap(project.schemeConfig)
@@ -243,9 +839,9 @@ export function useTestProject() {
                             })
                             return newRow
                         })
-                        console.log('🔄 统一转换 cachedData 为字段名格式:', processedData)
+                        console.log('统一转换 cachedData 为字段名格式:', processedData)
                     } else {
-                        console.log('✅ cachedData 已是字段名格式')
+                        console.log(' cachedData 已是字段名格式')
                     }
 
                     // 后续所有分支使用 processedData（字段名格式）
@@ -253,19 +849,62 @@ export function useTestProject() {
                     const elementColId = project.schemeConfig?.BaseColumns[0]?.id
                     const unitColId = project.schemeConfig?.BaseColumns[1]?.id
 
-                    console.log('🔍 elementColId:', elementColId)
-                    console.log('🔍 unitColId:', unitColId)
+                    console.log(' elementColId:', elementColId)
+                    console.log(' unitColId:', unitColId)
 
                     // ========== 提前获取项目类型 ==========
                     const projectType = getProjectType(row.item)
                     console.log('项目类型:', projectType)
 
+
                     // ============================================================
                     //  铁素体特殊处理（不依赖动态列）
                     // ============================================================
                     if (projectType === 'ferrite') {
-                        console.log('🔧 进入铁素体分支，数据条数:', processedData.length);
-                        console.log('📋 FooterColumns:', project.schemeConfig?.FooterColumns);
+                        console.log(' 进入铁素体分支');
+
+                        // ============================================================
+                        //  优先使用已有数据（编辑场景恢复）
+                        // ============================================================
+                        const existingProject = testProjectsRef.value[rowIndex]
+                        const existingFerriteGroups = existingProject?.reportData?.ferriteGroups
+
+                        if (existingFerriteGroups && existingFerriteGroups.length > 0) {
+                            console.log('✅ 铁素体：已有 ferriteGroups 数据，直接恢复')
+                            project.reportData.ferriteGroups = existingFerriteGroups
+                            project.reportData.isFerriteGrouped = true
+                            project.reportData.tableData = existingFerriteGroups.length > 0 ? existingFerriteGroups[0].tableData : []
+                            const firstItemData = processedData[0] || {}
+                            project.reportData.paramValues = mapField(firstItemData, paramMap)
+                            return
+                        }
+
+                        // ============================================================
+                        //  直接使用已获取的 processedData（不再重复请求云表）
+                        // ============================================================
+                        let rawData = processedData.length > 0 ? processedData : projectDataCache.value[rowIndex]
+
+                        //  调试：查看原始数据的字段名
+                        if (rawData && rawData.length > 0) {
+                            console.log('📋 原始数据第一条的所有字段:', Object.keys(rawData[0]))
+                            console.log('📋 原始数据第一条的"试样编号"字段值:', {
+                                '试样编号': rawData[0]['试样编号'],
+                                'Sample No.': rawData[0]['Sample No.'],
+                                'SampleNo': rawData[0]['SampleNo'],
+                                'sampleNo': rawData[0]['sampleNo']
+                            })
+                        }
+
+                        if (!rawData || rawData.length === 0) {
+                            ElMessage.warning('无法获取铁素体数据')
+                            return
+                        }
+
+                        console.log('📦 铁素体原始数据条数:', rawData.length)
+
+                        // ============================================================
+                        // 后续逻辑：扁平化 + 分组
+                        // ============================================================
 
                         // ===== 扁平化 ExtendColumns =====
                         let extendCols = project.schemeConfig.ExtendColumns || [];
@@ -291,25 +930,42 @@ export function useTestProject() {
                         });
                         project.schemeConfig.ExtendColumns = flattened;
 
-                        // ===== 重新生成 tableMap 和 paramMap（基于扁平化后的结构） =====
+                        // ===== 重新生成 tableMap 和 paramMap =====
                         const { tableMap, paramMap } = autoGenerateMap(project.schemeConfig);
-                        console.log('📋 扁平化后的 tableMap:', tableMap);
 
-                        // 构建 allColumns（扁平后的 Base + Extend）
+                        // 构建 allColumns
                         const allColumns = [
                             ...(project.schemeConfig.BaseColumns || []),
                             ...(project.schemeConfig.ExtendColumns || [])
                         ];
 
-                        // 构建 idToField（列ID → 字段名）
+                        // 构建 idToField
                         const idToField = {};
                         Object.entries(tableMap).forEach(([field, id]) => {
                             idToField[String(id)] = field;
                         });
 
+                        // 转换数据为字段名格式
+                        let processedRawData = rawData
+                        const firstItem = rawData[0] || {}
+                        const keys = Object.keys(firstItem)
+                        const isIdFormat = keys.length > 0 && /^\d+$/.test(keys[0])
+
+                        if (isIdFormat) {
+                            processedRawData = rawData.map(row => {
+                                const newRow = {}
+                                Object.entries(row).forEach(([id, value]) => {
+                                    const field = idToField[String(id)]
+                                    if (field) newRow[field] = value
+                                })
+                                return newRow
+                            })
+                            console.log('🔄 铁素体：转换 ID 格式为字段名格式')
+                        }
+
                         // 按试样编号分组
                         const groupsMap = new Map();
-                        processedData.forEach(item => {
+                        processedRawData.forEach(item => {
                             const sampleNo = item['试样编号'] || '未知试样';
                             if (!groupsMap.has(sampleNo)) groupsMap.set(sampleNo, []);
                             groupsMap.get(sampleNo).push(item);
@@ -329,12 +985,36 @@ export function useTestProject() {
                                 });
                                 return row;
                             });
-                            fGroups.push({
+
+                            // ⭐ 新增：把 footer 绑定的云表字段值存到该组
+                            const fGroup = {
                                 groupLabel: `试样 ${sampleNo}`,
                                 tableData: tableData,
-                                bottomRequirement: {}
+                                bottomRequirement: {},
+                                conclusion: '',
+                            };
+                            const firstItem = items[0] || {};
+                            (project.schemeConfig.FooterColumns || []).forEach(foot => {
+                                // 有专用容器的字段跳过
+                                if (foot.label.includes('技术要求')
+                                    || foot.label.includes('结论')
+                                    || foot.label.includes('备注')) return;
+
+                                const key = foot.yunbiaoField || foot.field;
+                                if (key && firstItem[key] !== undefined && firstItem[key] !== null) {
+                                    fGroup[key] = firstItem[key];
+                                }
                             });
+
+                            fGroups.push(fGroup);
                         }
+
+                        //  在这里添加调试日志
+                        console.log('📊 fGroups 详情:', fGroups.map((g, i) => ({
+                            index: i,
+                            label: g.groupLabel,
+                            rowCount: g.tableData.length
+                        })));
 
                         project.reportData.ferriteGroups = fGroups;
                         project.reportData.isFerriteGrouped = true;
@@ -344,11 +1024,285 @@ export function useTestProject() {
                         }
                         project.reportData.tableData = fGroups.length > 0 ? fGroups[0].tableData : [];
 
-                        // 参数回填
-                        const firstItemData = processedData[0] || {};
+                        const firstItemData = processedRawData[0] || {};
                         project.reportData.paramValues = mapField(firstItemData, paramMap);
 
                         ElMessage.success(`${row.item}数据自动填充完成`);
+                        return;
+                    }
+
+
+                    //室温拉伸多分组分支
+                    if (projectType === 'room-temperature-tensile') {
+                        // 1. 定义关键词 → 后端字段名的映射（按关键词长度降序排列，避免误匹配）
+                        const keywordToFieldMap = [
+                            { keyword: '屈强比', field: '屈强比要求' },
+                            { keyword: '抗拉', field: '抗拉要求' },
+                            { keyword: '屈服', field: '屈服要求' },
+                            { keyword: '断后', field: '断后要求' },
+                            { keyword: '断面', field: '断面要求' }
+                        ];
+
+                        // 匹配函数：根据列标签（或子列标签）匹配后端字段名
+                        const matchField = (label) => {
+                            if (!label) return null;
+                            for (const { keyword, field } of keywordToFieldMap) {
+                                if (label.includes(keyword)) {
+                                    return field;
+                                }
+                            }
+                            return null;
+                        };
+
+                        const techFields = ['抗拉要求', '屈服要求', '断后要求', '断面要求', '屈强比要求'];
+
+                        // 按技术要求分组
+                        const groupsMap = new Map();
+                        processedData.forEach(item => {
+                            const groupKey = techFields.map(field => item[field] || '').join('|');
+                            if (!groupsMap.has(groupKey)) groupsMap.set(groupKey, []);
+                            groupsMap.get(groupKey).push(item);
+                        });
+
+                        // 单组处理
+                        if (groupsMap.size === 1) {
+                            project.reportData.tableData = processedData.map(item => mapField(item, tableMap));
+                            project.reportData.paramValues = mapField(processedData[0] || {}, paramMap);
+                            project.reportData.isTensileGrouped = false;
+                            project.reportData.tensileGroups = [];
+
+                            // 填充全局技术要求（单组模式）
+                            const firstItem = processedData[0] || {};
+                            const techReq = {};
+                            project.schemeConfig.ExtendColumns.forEach(col => {
+                                if (col.subColumns?.length) {
+                                    col.subColumns.forEach(sub => {
+                                        const field = matchField(sub.label);
+                                        if (field && firstItem[field] !== undefined) {
+                                            techReq[sub.id] = firstItem[field];
+                                        }
+                                    });
+                                } else {
+                                    const field = matchField(col.label);
+                                    if (field && firstItem[field] !== undefined) {
+                                        techReq[col.id] = firstItem[field];
+                                    }
+                                }
+                            });
+                            project.reportData.techRequirement = techReq;
+                            ElMessage.success(`${row.item}数据自动填充完成`);
+                            return;
+                        }
+
+
+
+                        // 多组处理
+                        const tensileGroups = [];
+                        let groupIndex = 1;
+                        for (const items of groupsMap.values()) {
+                            const firstItem = items[0] || {};
+                            const techReq = {};
+
+                            // 遍历扩展列（含子列），通过列标签匹配后端字段并取值
+                            project.schemeConfig.ExtendColumns.forEach(col => {
+                                if (col.subColumns && col.subColumns.length > 0) {
+                                    col.subColumns.forEach(sub => {
+                                        const field = matchField(sub.label);
+                                        if (field && firstItem[field] !== undefined) {
+                                            techReq[sub.id] = firstItem[field];
+                                        }
+                                    });
+                                } else {
+                                    const field = matchField(col.label);
+                                    if (field && firstItem[field] !== undefined) {
+                                        techReq[col.id] = firstItem[field];
+                                    }
+                                }
+                            });
+
+                            const tableData = items.map(item => mapField(item, tableMap));
+                            tensileGroups.push({
+                                groupLabel: `技术要求组 ${groupIndex}`,
+                                techRequirements: techReq,
+                                tableData: tableData,
+                                conclusion: '',
+                                note: '',
+                                bottomRequirement: {}
+                            });
+                            groupIndex++;
+                        }
+
+                        project.reportData.tensileGroups = tensileGroups;
+                        project.reportData.isTensileGrouped = true;
+                        project.reportData.tableData = [];
+                        project.reportData.paramValues = mapField(processedData[0] || {}, paramMap);
+                        ElMessage.success(`${row.item}数据已按技术要求分组填充完成`);
+                        return;
+                    }
+
+                    // ======== 维氏硬度统一分支（按试样编号分组，每个试样独立表格） ========
+                    if (projectType === 'vickers-hardness') {
+                        if (!processedData || processedData.length === 0) {
+                            ElMessage.warning('维氏硬度无数据');
+                            return;
+                        }
+
+                        //  读取转换开关
+                        const enableConversion =
+                            project.schemeConfig.EnableConversion === true
+                            || project.schemeConfig.enableConversion === true;
+
+                        
+
+                        // 1. 检测是否有动态列 或 动态行
+                        const hasDynamicCol = project.schemeConfig.ExtendColumns?.some(col =>
+                            col.isDynamic === true || col.isDynamicRow === true
+                        );
+
+                        // 2. 收集所有结果列名（有动态列时才需要）
+                        let resultKeys = [];
+                        if (hasDynamicCol) {
+                            const firstRow = processedData[0] || {};
+                             resultKeys = Object.keys(firstRow)
+                                .filter(key => /^结果\d+$/.test(key))
+                                .sort((a, b) => {
+                                    const numA = parseInt(a.replace('结果', ''));
+                                    const numB = parseInt(b.replace('结果', ''));
+                                    return numA - numB;
+                                });
+                        }
+                        console.log('🔍 原始数据 key:', Object.keys(processedData[0] || {}));
+                        console.log('🔍 resultKeys:', resultKeys);
+
+
+                        // 3. 按试样编号分组
+                        const groupsMap = new Map();
+                        processedData.forEach(item => {
+                            const sampleNo = String(item['试样编号'] || '未知试样').trim();   // ⭐ trim
+                            if (!groupsMap.has(sampleNo)) groupsMap.set(sampleNo, []);
+                            groupsMap.get(sampleNo).push(item);
+                        });
+
+                        //  按试样编号排序（H01 → H02 → H03 → H10，数字按数值排）
+                        const sortedEntries = [...groupsMap.entries()].sort((a, b) =>
+                            a[0].localeCompare(b[0], 'zh-CN', { numeric: true })
+                        );
+
+                        // 4. 构建 vickersGroups
+                        const vickersGroups = [];
+                        for (const [sampleNo, items] of groupsMap) {
+                            // 4.1 计算该组最大结果数量（有动态列时才需要）
+                            let maxCount = 1;
+                            if (hasDynamicCol) {
+                                maxCount = 0;
+                                items.forEach(item => {
+                                    let count = 0;
+                                    resultKeys.forEach(key => {
+                                        if (item[key] !== undefined && item[key] !== null && String(item[key]).trim() !== '') {
+                                            count++;
+                                        }
+                                    });
+                                    if (count > maxCount) maxCount = count;
+                                });
+                                maxCount = Math.max(maxCount, 1);
+                            }
+
+                            // 4.2 动态生成子列（有动态列时）
+                            let subColumns = [];
+                            if (hasDynamicCol) {
+                                for (let i = 0; i < maxCount; i++) {
+                                    const idx = i + 1;
+                                    subColumns.push({
+                                        id: `point_${idx}`,
+                                        label: `${idx}.`,
+                                        enLabel: `${idx}.`,
+                                        yunbiaoField: `point_${idx}`
+                                    });
+                                }
+                            }
+
+                            // 4.3 构建表格数据（多行）
+                            const tableData = [];
+                            items.forEach(item => {
+                                // 基础列值
+                                const row = {};
+                                const sampleCol = project.schemeConfig.BaseColumns?.find(col =>
+                                    col.yunbiaoField === '试样编号' || col.label === '试样编号'
+                                );
+                                const posCol = project.schemeConfig.BaseColumns?.find(col =>
+                                    col.yunbiaoField === '检测位置' || col.label === '检测位置'
+                                );
+                                if (sampleCol) row[sampleCol.id] = sampleNo;
+                                if (posCol) row[posCol.id] = item['检测位置'] || '';
+
+                                if (hasDynamicCol) {
+                                    // 1. 填结果点
+                                    resultKeys.forEach((key, idx) => {
+                                        if (idx < maxCount) {
+                                            const colId = `point_${idx + 1}`;
+                                            const val = item[key];
+                                            row[colId] = (val !== undefined && val !== null) ? String(val).trim() : '';
+                                        }
+                                    });
+
+                                    // 2. ⭐ 初始化转换值字段（用户手填，先留空）
+                                    if (enableConversion) {
+                                        for (let i = 0; i < maxCount; i++) {
+                                            row[`conv_point_${i + 1}`] = '';
+                                        }
+                                    }
+
+                                    tableData.push(row);   // 只 push 一行
+                                } else {
+                                    // 无动态列：先用 mapField 映射整行
+                                    const mappedRow = mapField(item, tableMap);
+                                    Object.assign(row, mappedRow);
+
+                                    // ⭐ 初始化转换值字段（用户手填，先留空）
+                                    if (enableConversion) {
+                                        const extendCols = project.schemeConfig.ExtendColumns || [];
+                                        extendCols.forEach(col => {
+                                            if (col.subColumns?.length > 0) {
+                                                col.subColumns.forEach(sub => {
+                                                    row[`conv_${sub.id}`] = '';
+                                                });
+                                            } else {
+                                                row[`conv_${col.id}`] = '';
+                                            }
+                                        });
+                                    }
+
+                                    tableData.push(row);   // 只 push 一行
+                                }
+                            });
+
+                            console.log('维氏硬度数据:', {
+                                resultKeys,
+                                maxCount,
+                                subColumns: subColumns.map(c => c.label),
+                                tableData: JSON.stringify(tableData)
+                            });
+
+                            // 4.4 技术要求
+                            const techReq = items[0]?.['硬度要求'] || items[0]?.['技术要求'] || '';
+
+                            vickersGroups.push({
+                                groupLabel: sampleNo,
+                                subColumns: subColumns,          // 有动态列时才有值，无动态列为空数组
+                                tableData: tableData,
+                                techRequirement: techReq,
+                                conclusion: '',
+                                note: '',
+                                enableConversion
+                            });
+                        }
+
+                        // 5. 赋值
+                        project.reportData.vickersGroups = vickersGroups;
+                        project.reportData.isVickersGrouped = true;
+                        project.reportData.tableData = [];
+                        project.reportData.paramValues = mapField(processedData[0] || {}, paramMap);
+                        ElMessage.success(`${row.item}数据已按试样编号分组（${hasDynamicCol ? '动态列' : '固定列'}模式）`);
                         return;
                     }
 
@@ -368,38 +1322,20 @@ export function useTestProject() {
                             let dataForGroupImpact = processedData
 
                             if (hasExpandedSamples) {
-                                console.log('🔄 检测到展开列格式，重新请求云表接口...')
-
-                                const orderNoParam = orderNo || testEnv[rowIndex]?.orderNo || testEnv[rowIndex]?.委托单号 || ''
-                                const inspectionNoParam = inspectionNo || testEnv[rowIndex]?.inspectionOrderNo || testEnv[rowIndex]?.报检单号 || ''
-
-                                if (orderNoParam && inspectionNoParam) {
-                                    try {
-                                        const res = await axios.post(`/api/yunbiao/report-data/impact-test`, {
-                                            orderNo: orderNoParam,
-                                            inspectionNo: inspectionNoParam
-                                        })
-                                        if (res?.data) {
-                                            dataForGroupImpact = Array.isArray(res.data) ? res.data : [res.data]
-                                            // ✅ 关键修复：更新 processedData，用于 paramValues 回填
-                                            processedData = dataForGroupImpact
-                                            console.log('✅ 重新请求云表接口成功，数据条数:', dataForGroupImpact.length)
-                                        }
-                                    } catch (err) {
-                                        console.warn('⚠️ 重新请求冲击数据失败，使用缓存数据', err)
-                                        dataForGroupImpact = processedData
-                                    }
-                                } else {
-                                    console.warn('⚠️ 缺少订单号或报检单号，无法请求云表接口，使用缓存数据')
+                                console.log('🔄 检测到展开列格式')
+                                //  数据已经在上面获取了，这里不需要再请求
+                                // 只做格式检查，不重新请求
+                                if (!dataForGroupImpact || dataForGroupImpact.length === 0) {
+                                    dataForGroupImpact = processedData
                                 }
                             }
 
-                            console.log('📦 dataForGroupImpact 长度:', dataForGroupImpact.length)
-                            console.log('📦 dataForGroupImpact 内容:', JSON.stringify(dataForGroupImpact, null, 2))
+                            console.log(' dataForGroupImpact 长度:', dataForGroupImpact.length)
+                            console.log(' dataForGroupImpact 内容:', JSON.stringify(dataForGroupImpact, null, 2))
 
                             const groupedData = groupImpactData(dataForGroupImpact)
 
-                            // ✅ 再次确保清空再赋值
+                            //  再次确保清空再赋值
                             project.reportData.impactGroups = []
                             project.reportData.impactGroups = groupedData
                             project.reportData.isImpactGrouped = true
@@ -408,6 +1344,21 @@ export function useTestProject() {
                             console.log('📊 最终 impactGroups 长度:', project.reportData.impactGroups.length)
                             project.reportData.impactGroups = groupedData
                             project.reportData.isImpactGrouped = true
+
+                            //  从 _rawItem 提取每组独立的参数值
+                            if (project.schemeConfig?.ParamItems?.length > 0) {
+                                groupedData.forEach(group => {
+                                    group.paramValues = {}
+                                    const raw = group._rawItem || {}
+                                    project.schemeConfig.ParamItems.forEach(param => {
+                                        const field = param.yunbiaoField
+                                        if (field && raw[field] !== undefined && raw[field] !== null) {
+                                            group.paramValues[param.id] = raw[field]
+                                        }
+                                    })
+                                    console.log('📦 冲击分组参数:', group.groupLabel, group.paramValues)
+                                })
+                            }
 
                             if (groupedData.length > 0) {
                                 groupedData.forEach(group => {
@@ -428,71 +1379,7 @@ export function useTestProject() {
                             } else {
                                 project.reportData.tableData = []
                             }
-                        }  else if (projectType === 'vickers-hardness') {
-                            project.reportData.impactGroups = []
-                            project.reportData.isImpactGrouped = false
-                            if (!processedData || processedData.length === 0) {
-                                ElMessage.warning('维氏硬度无数据');
-                                return;
-                            }
-
-                            const firstRow = processedData[0] || {};
-                            const resultKeys = Object.keys(firstRow).filter(key => /^结果\d+$/.test(key));
-
-                            let maxCount = 0;
-                            processedData.forEach(item => {
-                                let count = 0;
-                                resultKeys.forEach(key => {
-                                    if (item[key] && item[key].trim() !== '') count++;
-                                });
-                                if (count > maxCount) maxCount = count;
-                            });
-                            maxCount = Math.max(maxCount, 1);
-
-                            const dynamicCol = project.schemeConfig.ExtendColumns.find(col => col.isDynamic);
-                            if (dynamicCol) {
-                                dynamicCol.label = '检测结果';
-                                dynamicCol.enLabel = 'Test Results';
-                                const subColumns = [];
-                                for (let i = 0; i < maxCount; i++) {
-                                    const idx = i + 1;
-                                    subColumns.push({
-                                        id: `point_${idx}`,
-                                        label: `${idx}.`,
-                                        enLabel: `${idx}.`,
-                                        yunbiaoField: `point_${idx}`
-                                    });
-                                }
-                                dynamicCol.subColumns = subColumns;
-                            }
-
-                            const tableData = [];
-                            processedData.forEach(item => {
-                                const rowValue = {
-                                    [elementColId]: item['试样编号'] || '',
-                                    [unitColId]: item['检测位置'] || ''
-                                };
-                                const rowConvert = {
-                                    [elementColId]: item['试样编号'] || '',
-                                    [unitColId]: '转换值(HRC) Conversion value'
-                                };
-                                for (let i = 0; i < maxCount; i++) {
-                                    const idx = i + 1;
-                                    const colId = `point_${idx}`;
-                                    const resultKey = resultKeys[i] || `结果${idx}`;
-                                    rowValue[colId] = item[resultKey] || '/';
-                                    rowConvert[colId] = '';
-                                }
-                                tableData.push(rowValue);
-                                tableData.push(rowConvert);
-                            });
-
-                            project.reportData.tableData = tableData;
-                            project.reportData.paramValues = {};
-                            project.reportData.rowSpanColumns = [elementColId];
-                            ElMessage.success(`${row.item}数据自动填充完成`);
-                            return;
-                        } else {
+                        }   else {
                             project.reportData.impactGroups = []
                             project.reportData.isImpactGrouped = false
                             // 化学成分等动态数据处理
@@ -530,7 +1417,7 @@ export function useTestProject() {
                         // 普通项目（无动态列）
                         // 此时 processedData 已是字段名格式，直接映射
                         project.reportData.tableData = processedData.map(item => mapField(item, tableMap))
-                        console.log('✅ 普通项目：通过 mapField 映射数据')
+                        console.log(' 普通项目：通过 mapField 映射数据')
                     }
 
                     // 参数值回填
@@ -583,7 +1470,7 @@ export function useTestProject() {
         testProjects.value[projectIndex].reportData.tableData.splice(rowIndex, 1)
     }
 
-    // ✅新增：冲击分支：删除数据行
+    // 新增：冲击分支：删除数据行
     function deleteImpactRow(projectIndex, groupIndex, rowIndex) {
         const project = testProjects.value[projectIndex];
         if (!project || !project.reportData.impactGroups) return;
@@ -635,8 +1522,90 @@ export function useTestProject() {
         }
     }
 
+    // 新增拉伸分组行
+    function addTensileRow(projectIndex, groupIndex) {
+        console.log('🔥 addTensileRow 被调用', { projectIndex, groupIndex });
+
+        const project = testProjects.value[projectIndex];
+        if (!project?.schemeConfig) {
+            ElMessage.warning('请先加载模板');
+            return;
+        }
+        const group = project.reportData.tensileGroups?.[groupIndex];
+        if (!group) return;
+        const newRow = {};
+        const allCols = [
+            ...(project.schemeConfig.BaseColumns || []),
+            ...(project.schemeConfig.ExtendColumns || [])
+        ];
+        allCols.forEach(col => newRow[col.id] = '');
+        group.tableData.push(newRow);
+    }
+
+    // 删除拉伸分组行
+    function deleteTensileRow(projectIndex, groupIndex, rowIndex) {
+        const project = testProjects.value[projectIndex];
+        const group = project.reportData.tensileGroups?.[groupIndex];
+        if (!group) return;
+        group.tableData.splice(rowIndex, 1);
+        if (group.tableData.length === 0) {
+            // 若组内无数据，自动移除该组
+            project.reportData.tensileGroups.splice(groupIndex, 1);
+            if (project.reportData.tensileGroups.length === 0) {
+                project.reportData.isTensileGrouped = false;
+            }
+        }
+    }
+
+    // 删除整个拉伸分组
+    function deleteTensileGroup(projectIndex, groupIndex) {
+        const project = testProjects.value[projectIndex];
+        if (!project?.reportData.tensileGroups) return;
+        project.reportData.tensileGroups.splice(groupIndex, 1);
+        if (project.reportData.tensileGroups.length === 0) {
+            project.reportData.isTensileGrouped = false;
+        }
+    }
+
+
+    function addVickersRow(projectIndex, groupIndex) {
+        const project = testProjects.value[projectIndex];
+        const group = project.reportData.vickersGroups?.[groupIndex];
+        if (!group) return;
+        const newRow = {};
+        group.subColumns.forEach(col => {
+            newRow[col.id] = '';
+        });
+        group.tableData.push(newRow);
+    }
+
+    function deleteVickersRow(projectIndex, groupIndex, rowIndex) {
+        const project = testProjects.value[projectIndex];
+        const group = project.reportData.vickersGroups?.[groupIndex];
+        if (!group) return;
+        group.tableData.splice(rowIndex, 1);
+        if (group.tableData.length === 0) {
+            project.reportData.vickersGroups.splice(groupIndex, 1);
+            if (project.reportData.vickersGroups.length === 0) {
+                project.reportData.isVickersGrouped = false;
+            }
+        }
+    }
+
+    function deleteVickersGroup(projectIndex, groupIndex) {
+        const project = testProjects.value[projectIndex];
+        if (!project?.reportData.vickersGroups) return;
+        project.reportData.vickersGroups.splice(groupIndex, 1);
+        if (project.reportData.vickersGroups.length === 0) {
+            project.reportData.isVickersGrouped = false;
+        }
+    }
+
+
     function addPhotoRow(projectIndex) {
-        testProjects.value[projectIndex].reportData.photoRows.push({ LeftUrl: '', LeftDesc: '', RightUrl: '', RightDesc: '' })
+        testProjects.value[projectIndex].reportData.photoRows.push({
+            LeftUrl: '', LeftDesc: '', RightUrl: '', RightDesc: '', marginTop: 2.65
+        })
     }
 
     function removePhotoRow(projectIndex, rowIndex) {
@@ -674,7 +1643,7 @@ export function useTestProject() {
 
     function onTechSpecChange(rowIndex, specId, testEnv, testProjectsRef, orderNo, inspectionNo) {
         console.log(' onTechSpecChange 执行', { rowIndex, specId });
-        console.log('📦 传入的订单号:', orderNo, '报检单号:', inspectionNo)
+        console.log(' 传入的订单号:', orderNo, '报检单号:', inspectionNo)
 
 
         // 1. 先判断 rowIndex 是否在有效范围内
@@ -700,7 +1669,7 @@ export function useTestProject() {
             console.warn('未找到匹配的技术要求，specId:', specId)
         }
 
-        console.log('📦 [onTechSpecChange] 将要调用 matchSchemeAndLoadTemplate，参数:', {
+        console.log(' [onTechSpecChange] 将要调用 matchSchemeAndLoadTemplate，参数:', {
             rowIndex,
             projectCode: row?.projectCode,
             specId,
@@ -712,7 +1681,7 @@ export function useTestProject() {
         matchSchemeAndLoadTemplate(rowIndex, row?.projectCode, specId, testEnv, testProjectsRef, orderNo, inspectionNo)
     }
 
-    console.log('🔍 useTestProject 返回的 projectDataCache:', projectDataCache)
+    console.log(' useTestProject 返回的 projectDataCache:', projectDataCache)
 
 
     return {
@@ -731,10 +1700,38 @@ export function useTestProject() {
         deleteImpactRow,
         deleteFerriteRow,      
         deleteFerriteGroup,
+        addTensileRow,
+        deleteTensileRow,
+        deleteTensileGroup,
+        addVickersRow,
+        deleteVickersRow,
+        deleteVickersGroup,
         addPhotoRow,
         removePhotoRow,
         pickPhoto,
         onProjectCodeChange,
-        onTechSpecChange
+        onTechSpecChange,
+        cloneTensileGroup,
+        copyTensileTableAsGroup,
+        copyCorrosionTableAsGroup,
+        cloneCorrosionGroup,
+        deleteCorrosionGroup,
+        addCorrosionRow,
+        deleteCorrosionRow,
+        copyInclusionTableAsGroup,
+        cloneInclusionGroup,
+        deleteInclusionGroup,
+        addInclusionRow,
+        deleteInclusionRow,
+        copyChemTableAsGroup,
+        cloneChemGroup,
+        deleteChemGroup,
+        addChemRow,
+        deleteChemRow,
+        copyMetallographicTableAsGroup,
+        cloneMetallographicGroup,
+        deleteMetallographicGroup,
+        addMetallographicRow,
+        deleteMetallographicRow
     }
 }

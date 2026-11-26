@@ -1,414 +1,1379 @@
 ﻿<template>
-    <div class="lab-data-query">
-        <el-tabs v-model="activeTab" type="border-card" @tab-click="handleTabClick">
-            <!-- 页签1: 原材料化学成分（后端接口） -->
-            <el-tab-pane label="原材料化学成分" name="rawChem">
-                <div class="query-bar">
-                    <el-input v-model="rawChemQuery.supplier" placeholder="供应商" clearable style="width:180px" />
-                    <el-input v-model="rawChemQuery.materialType" placeholder="原材料类型" clearable style="width:180px" />
-                    <el-input v-model="rawChemQuery.materialGrade" placeholder="材质" clearable style="width:150px" />
-                    <el-input v-model="rawChemQuery.heatNo" placeholder="炉号" clearable style="width:180px" />
-                    <el-button type="primary" @click="searchRawChem">查询</el-button>
-                    <el-button @click="resetRawChem">重置</el-button>
-                    <el-button type="success" @click="exportRawChem" style="margin-left: auto;">导出</el-button>
+  <div class="lab-data-query">
+    <el-tabs
+      v-model="activeTab"
+      type="border-card"
+      @tab-click="handleTabClick"
+    >
+      <!-- 页签1: 原材料化学成分（后端接口） -->
+      <el-tab-pane
+        label="原材料化学成分"
+        name="rawChem"
+      >
+        <div class="query-bar">
+          <el-input
+            v-model="rawChemQuery.supplier"
+            placeholder="供应商"
+            clearable
+            style="width:180px"
+          />
+          <el-input
+            v-model="rawChemQuery.materialType"
+            placeholder="原材料类型"
+            clearable
+            style="width:180px"
+          />
+          <el-input
+            v-model="rawChemQuery.materialGrade"
+            placeholder="材质"
+            clearable
+            style="width:150px"
+          />
+          <el-input
+            v-model="rawChemQuery.heatNo"
+            placeholder="炉号"
+            clearable
+            style="width:180px"
+          />
+          <el-button
+            type="primary"
+            @click="searchRawChem"
+          >
+            查询
+          </el-button>
+          <el-button @click="resetRawChem">
+            重置
+          </el-button>
+          <el-button
+            type="success"
+            style="margin-left: auto;"
+            @click="exportRawChem"
+          >
+            导出
+          </el-button>
+        </div>
+        <div class="table-wrapper">
+          <el-table
+            v-loading="loadingRawChem"
+            :data="rawChemList"
+            border
+            stripe
+            max-height="600"
+          >
+            <el-table-column
+              v-for="col in rawChemCols"
+              :key="col.prop"
+              :prop="col.prop"
+              :label="col.label"
+              :width="col.width"
+              show-overflow-tooltip
+              :fixed="col.fixed ? 'left' : false"
+            />
+          </el-table>
+          <el-pagination
+            v-model:current-page="rawChemPage.current"
+            v-model:page-size="rawChemPage.size"
+            :page-sizes="[10, 20, 50, 100]"
+            :total="rawChemTotal"
+            layout="total, sizes, prev, pager, next, jumper"
+            class="pagination"
+            @size-change="handleRawChemSizeChange"
+            @current-change="handleRawChemCurrentChange"
+          />
+        </div>
+      </el-tab-pane>
+
+      <!-- 页签2: 实验室-化学成分（后端接口） -->
+      <el-tab-pane
+        label="实验室-化学成分"
+        name="labChem"
+      >
+        <div class="query-bar">
+          <el-input
+            v-model="labChemQuery.orderNo"
+            placeholder="订单号"
+            clearable
+            style="width:180px"
+          />
+          <el-input
+            v-model="labChemQuery.material"
+            placeholder="材质"
+            clearable
+            style="width:150px"
+          />
+          <el-input
+            v-model="labChemQuery.heatNo"
+            placeholder="炉号"
+            clearable
+            style="width:180px"
+          />
+          <el-button
+            type="primary"
+            @click="searchLabChem"
+          >
+            查询
+          </el-button>
+          <el-button @click="resetLabChem">
+            重置
+          </el-button>
+          <el-button
+            type="success"
+            style="margin-left: auto;"
+            @click="exportLabChem"
+          >
+            导出
+          </el-button>
+        </div>
+        <div class="table-wrapper">
+          <el-table
+            v-loading="loading"
+            :data="labChemList"
+            border
+            stripe
+            max-height="600"
+            @row-click="handleLabChemRowClick"
+          >
+            <el-table-column
+              v-for="col in labChemCols"
+              :key="col.prop"
+              :prop="col.prop"
+              :label="col.label"
+              :width="col.width"
+              show-overflow-tooltip
+            />
+          </el-table>
+          <el-pagination
+            v-model:current-page="labChemPage.current"
+            v-model:page-size="labChemPage.size"
+            :page-sizes="[10, 20, 50, 100]"
+            :total="labChemTotal"
+            layout="total, sizes, prev, pager, next, jumper"
+            class="pagination"
+            @size-change="handleLabChemSizeChange"
+            @current-change="handleLabChemCurrentChange"
+          />
+
+          <!-- 可折叠的子表格区域 -->
+          <el-collapse
+            v-model="activeCollapse"
+            style="margin-top: 20px;"
+          >
+            <el-collapse-item
+              name="materialChem"
+              title="原材料化学成分（点击行自动展开）"
+            >
+              <!-- 没有选中行时显示提示 -->
+              <div
+                v-if="!selectedLabChemRow"
+                style="text-align: center; color: #909399; padding: 20px;"
+              >
+                请点击上方表格中的某一行，查看该材质对应的原材料化学成分
+              </div>
+              <!-- 有选中行时显示表格 -->
+              <div v-else>
+                <div style="margin-bottom: 10px;">
+                  <span style="font-weight: bold;">材质：{{ selectedLabChemRow.material }}</span>
+                  <el-button
+                    size="small"
+                    style="margin-left: 10px;"
+                    @click="refreshMaterialChem"
+                  >
+                    刷新
+                  </el-button>
                 </div>
-                <div class="table-wrapper">
-                    <el-table :data="rawChemList" border stripe v-loading="loadingRawChem" max-height="600">
-                        <el-table-column v-for="col in rawChemCols"
-                                         :key="col.prop"
-                                         :prop="col.prop"
-                                         :label="col.label"
-                                         :width="col.width"
-                                         show-overflow-tooltip
-                                         :fixed="col.fixed ? 'left' : false" />
-                    </el-table>
-                    <el-pagination v-model:current-page="rawChemPage.current"
-                                   v-model:page-size="rawChemPage.size"
-                                   :page-sizes="[10, 20, 50, 100]"
-                                   :total="rawChemTotal"
-                                   layout="total, sizes, prev, pager, next, jumper"
-                                   @size-change="handleRawChemSizeChange"
-                                   @current-change="handleRawChemCurrentChange"
-                                   class="pagination" />
+                <!-- 数据为空时显示提示 -->
+                <div
+                  v-if="materialChemList.length === 0 && !materialChemLoading"
+                  style="text-align: center; color: #909399; padding: 20px;"
+                >
+                  没有匹配材质的原材料化学成分记录
                 </div>
-            </el-tab-pane>
+                <el-table
+                  v-else
+                  v-loading="materialChemLoading"
+                  :data="materialChemList"
+                  border
+                  stripe
+                  max-height="300"
+                >
+                  <el-table-column
+                    v-for="col in rawChemCols"
+                    :key="col.prop"
+                    :prop="col.prop"
+                    :label="col.label"
+                    :width="col.width"
+                    show-overflow-tooltip
+                    :fixed="col.fixed ? 'left' : false"
+                  />
+                </el-table>
+                <el-pagination
+                  v-if="materialChemTotal > 0"
+                  v-model:current-page="materialChemPage.current"
+                  v-model:page-size="materialChemPage.size"
+                  :page-sizes="[10, 20, 50]"
+                  :total="materialChemTotal"
+                  layout="total, sizes, prev, pager, next, jumper"
+                  class="pagination"
+                  @size-change="handleMaterialChemSizeChange"
+                  @current-change="handleMaterialChemCurrentChange"
+                />
+              </div>
+            </el-collapse-item>
+          </el-collapse>
+        </div>
+      </el-tab-pane>
 
-            <!-- 页签2: 实验室-化学成分（后端接口） -->
-            <el-tab-pane label="实验室-化学成分" name="labChem">
-                <div class="query-bar">
-                    <el-input v-model="labChemQuery.orderNo" placeholder="订单号" clearable style="width:180px" />
-                    <el-input v-model="labChemQuery.material" placeholder="材质" clearable style="width:150px" />
-                    <el-input v-model="labChemQuery.heatNo" placeholder="炉号" clearable style="width:180px" />
-                    <el-button type="primary" @click="searchLabChem">查询</el-button>
-                    <el-button @click="resetLabChem">重置</el-button>
-                    <el-button type="success" @click="exportLabChem" style="margin-left: auto;">导出</el-button>
-                </div>
-                <div class="table-wrapper">
-                    <el-table :data="labChemList" border stripe v-loading="loading" max-height="600" @row-click="handleLabChemRowClick">
-                        <el-table-column v-for="col in labChemCols"
-                                         :key="col.prop"
-                                         :prop="col.prop"
-                                         :label="col.label"
-                                         :width="col.width"
-                                         show-overflow-tooltip />
-                    </el-table>
-                    <el-pagination v-model:current-page="labChemPage.current"
-                                   v-model:page-size="labChemPage.size"
-                                   :page-sizes="[10, 20, 50, 100]"
-                                   :total="labChemTotal"
-                                   layout="total, sizes, prev, pager, next, jumper"
-                                   @size-change="handleLabChemSizeChange"
-                                   @current-change="handleLabChemCurrentChange"
-                                   class="pagination" />
+      <!-- 页签3: 机械性能（后端接口） -->
+      <el-tab-pane
+        label="机械性能"
+        name="mechProp"
+      >
+        <div class="query-bar">
+          <el-input
+            v-model="mechQuery.orderNo"
+            placeholder="订单号"
+            clearable
+            style="width:180px"
+          />
+          <el-input
+            v-model="mechQuery.material"
+            placeholder="材质"
+            clearable
+            style="width:150px"
+          />
+          <el-input
+            v-model="mechQuery.heatNo"
+            placeholder="炉号"
+            clearable
+            style="width:180px"
+          />
+          <el-button
+            type="primary"
+            @click="searchMech"
+          >
+            查询
+          </el-button>
+          <el-button @click="resetMech">
+            重置
+          </el-button>
+          <el-button
+            type="success"
+            style="margin-left: auto;"
+            @click="exportMech"
+          >
+            导出
+          </el-button>
+        </div>
+        <div class="table-wrapper">
+          <el-table
+            v-loading="loading"
+            :data="mechList"
+            border
+            stripe
+            max-height="600"
+          >
+            <!-- 基础信息列 -->
+            <el-table-column
+              prop="registrar"
+              label="登记人员"
+              width="100"
+              fixed="left"
+            />
+            <el-table-column
+              prop="orderNo"
+              label="订单号"
+              width="140"
+            />
+            <el-table-column
+              prop="sheetNo"
+              label="委托单号"
+              width="140"
+            />
+            <el-table-column
+              prop="inspectionNo"
+              label="报检单号"
+              width="140"
+            />
+            <el-table-column
+              prop="material"
+              label="材质"
+              width="100"
+            />
+            <el-table-column
+              prop="heatNo"
+              label="原材料炉号"
+              width="150"
+            />
+            <el-table-column
+              prop="heatTreatmentNo"
+              label="热处理炉号"
+              width="150"
+            />
+            <el-table-column
+              prop="spec"
+              label="试样尺寸/产品尺寸"
+              width="130"
+            />
+            <el-table-column
+              prop="heatTreatmentParam"
+              label="热处理工艺与参数"
+              width="160"
+            />
 
-                    <!-- 可折叠的子表格区域 -->
-                    <el-collapse v-model="activeCollapse" style="margin-top: 20px;">
-                        <el-collapse-item name="materialChem" title="原材料化学成分（点击行自动展开）">
-                            <!-- 没有选中行时显示提示 -->
-                            <div v-if="!selectedLabChemRow" style="text-align: center; color: #909399; padding: 20px;">
-                                请点击上方表格中的某一行，查看该材质对应的原材料化学成分
-                            </div>
-                            <!-- 有选中行时显示表格 -->
-                            <div v-else>
-                                <div style="margin-bottom: 10px;">
-                                    <span style="font-weight: bold;">材质：{{ selectedLabChemRow.material }}</span>
-                                    <el-button size="small" @click="refreshMaterialChem" style="margin-left: 10px;">刷新</el-button>
-                                </div>
-                                <!-- 数据为空时显示提示 -->
-                                <div v-if="materialChemList.length === 0 && !materialChemLoading" style="text-align: center; color: #909399; padding: 20px;">
-                                    没有匹配材质的原材料化学成分记录
-                                </div>
-                                <el-table v-else :data="materialChemList" border stripe v-loading="materialChemLoading" max-height="300">
-                                    <el-table-column v-for="col in rawChemCols"
-                                                     :key="col.prop"
-                                                     :prop="col.prop"
-                                                     :label="col.label"
-                                                     :width="col.width"
-                                                     show-overflow-tooltip
-                                                     :fixed="col.fixed ? 'left' : false" />
-                                </el-table>
-                                <el-pagination v-if="materialChemTotal > 0"
-                                               v-model:current-page="materialChemPage.current"
-                                               v-model:page-size="materialChemPage.size"
-                                               :page-sizes="[10, 20, 50]"
-                                               :total="materialChemTotal"
-                                               layout="total, sizes, prev, pager, next, jumper"
-                                               @size-change="handleMaterialChemSizeChange"
-                                               @current-change="handleMaterialChemCurrentChange"
-                                               class="pagination" />
-                            </div>
-                        </el-collapse-item>
-                    </el-collapse>
-                </div>
-            </el-tab-pane>
+            <!-- 拉伸试验 -->
+            <el-table-column
+              label="拉伸试验"
+              align="center"
+            >
+              <el-table-column
+                prop="tensileDrawingNo"
+                label="取样图号"
+                width="120"
+              />
+              <el-table-column
+                prop="tensileDirection"
+                label="试样取样方向"
+                width="120"
+              />
+              <el-table-column
+                prop="tensilePosition"
+                label="试样取样位置"
+                width="120"
+              />
+              <el-table-column
+                prop="tensileStandard"
+                label="试验标准"
+                width="120"
+              />
+              <el-table-column
+                prop="tensileTemp"
+                label="试验温度(℃)"
+                width="110"
+              />
+              <el-table-column
+                prop="tensileSize"
+                label="试样尺寸(mm)"
+                width="110"
+              />
+              <el-table-column
+                prop="tensileStrength"
+                label="抗拉强度(MPa)"
+                width="130"
+              />
+              <el-table-column
+                prop="yieldStrength"
+                label="屈服强度(MPa)"
+                width="130"
+              />
+              <el-table-column
+                prop="elongation"
+                label="延伸率(%)"
+                width="100"
+              />
+              <el-table-column
+                prop="reductionArea"
+                label="截面收缩率(%)"
+                width="120"
+              />
+              <el-table-column
+                prop="yieldRatio"
+                label="屈强比"
+                width="90"
+              />
+              <el-table-column
+                prop="tensileRemark"
+                label="备注"
+                width="120"
+              />
+            </el-table-column>
 
-            <!-- 页签3: 机械性能（后端接口） -->
-            <el-tab-pane label="机械性能" name="mechProp">
-                <div class="query-bar">
-                    <el-input v-model="mechQuery.orderNo" placeholder="订单号" clearable style="width:180px" />
-                    <el-input v-model="mechQuery.material" placeholder="材质" clearable style="width:150px" />
-                    <el-input v-model="mechQuery.heatNo" placeholder="炉号" clearable style="width:180px" />
-                    <el-button type="primary" @click="searchMech">查询</el-button>
-                    <el-button @click="resetMech">重置</el-button>
-                    <el-button type="success" @click="exportMech" style="margin-left: auto;">导出</el-button>
-                </div>
-                <div class="table-wrapper">
-                    <el-table :data="mechList" border stripe v-loading="loading" max-height="600">
-                        <!-- 基础信息列 -->
-                        <el-table-column prop="registrar" label="登记人员" width="100" fixed="left" />
-                        <el-table-column prop="orderNo" label="订单号" width="140" />
-                        <el-table-column prop="sheetNo" label="委托单号" width="140" />
-                        <el-table-column prop="inspectionNo" label="报检单号" width="140" />
-                        <el-table-column prop="material" label="材质" width="100" />
-                        <el-table-column prop="heatNo" label="原材料炉号" width="150" />
-                        <el-table-column prop="heatTreatmentNo" label="热处理炉号" width="150" />
-                        <el-table-column prop="spec" label="试样尺寸/产品尺寸" width="130" />
-                        <el-table-column prop="heatTreatmentParam" label="热处理工艺与参数" width="160" />
+            <!-- 冲击实验 -->
+            <el-table-column
+              label="冲击实验"
+              align="center"
+            >
+              <el-table-column
+                label="取样图号"
+                prop="impactDrawingNo"
+                width="120"
+              />
+              <el-table-column
+                label="试样取样方向"
+                prop="impactDirection"
+                width="120"
+              />
+              <el-table-column
+                label="试样取样位置"
+                prop="impactPosition"
+                width="120"
+              />
+              <el-table-column
+                label="试验标准"
+                prop="impactStandard"
+                width="120"
+              />
+              <el-table-column
+                label="试样尺寸(mm)"
+                prop="impactSize"
+                width="110"
+              />
+              <el-table-column
+                label="试验温度(℃)"
+                prop="impactTemp"
+                width="110"
+              />
+              <el-table-column
+                label="缺口形式"
+                prop="impactNotch"
+                width="100"
+              />
+              <el-table-column
+                label="测试值 J"
+                align="center"
+              >
+                <el-table-column
+                  prop="impactKV1"
+                  label="1#"
+                  width="60"
+                />
+                <el-table-column
+                  prop="impactKV2"
+                  label="2#"
+                  width="60"
+                />
+                <el-table-column
+                  prop="impactKV3"
+                  label="3#"
+                  width="60"
+                />
+              </el-table-column>
+              <el-table-column
+                label="侧向膨胀量 mm"
+                align="center"
+              >
+                <el-table-column
+                  prop="lateralExpansion1"
+                  label="1#"
+                  width="80"
+                />
+                <el-table-column
+                  prop="lateralExpansion2"
+                  label="2#"
+                  width="80"
+                />
+                <el-table-column
+                  prop="lateralExpansion3"
+                  label="3#"
+                  width="80"
+                />
+              </el-table-column>
+              <el-table-column
+                label="剪切面积 %"
+                align="center"
+              >
+                <el-table-column
+                  prop="shearArea1"
+                  label="1#"
+                  width="70"
+                />
+                <el-table-column
+                  prop="shearArea2"
+                  label="2#"
+                  width="70"
+                />
+                <el-table-column
+                  prop="shearArea3"
+                  label="3#"
+                  width="70"
+                />
+              </el-table-column>
+              <el-table-column
+                prop="impactRemark"
+                label="备注"
+                width="120"
+              />
+            </el-table-column>
 
-                        <!-- 拉伸试验 -->
-                        <el-table-column label="拉伸试验" align="center">
-                            <el-table-column prop="tensileDrawingNo" label="取样图号" width="120" />
-                            <el-table-column prop="tensileDirection" label="试样取样方向" width="120" />
-                            <el-table-column prop="tensilePosition" label="试样取样位置" width="120" />
-                            <el-table-column prop="tensileStandard" label="试验标准" width="120" />
-                            <el-table-column prop="tensileTemp" label="试验温度(℃)" width="110" />
-                            <el-table-column prop="tensileSize" label="试样尺寸(mm)" width="110" />
-                            <el-table-column prop="tensileStrength" label="抗拉强度(MPa)" width="130" />
-                            <el-table-column prop="yieldStrength" label="屈服强度(MPa)" width="130" />
-                            <el-table-column prop="elongation" label="延伸率(%)" width="100" />
-                            <el-table-column prop="reductionArea" label="截面收缩率(%)" width="120" />
-                            <el-table-column prop="yieldRatio" label="屈强比" width="90" />
-                            <el-table-column prop="tensileRemark" label="备注" width="120" />
-                        </el-table-column>
+            <!-- 硬度 -->
+            <el-table-column
+              label="硬度"
+              align="center"
+            >
+              <el-table-column
+                prop="hardnessDrawingNo"
+                label="取样图号"
+                width="120"
+              />
+              <el-table-column
+                prop="hardnessDirection"
+                label="试样取样方向"
+                width="120"
+              />
+              <el-table-column
+                prop="hardnessPosition"
+                label="试样取样位置"
+                width="120"
+              />
+              <el-table-column
+                prop="hardnessStandard"
+                label="试验标准"
+                width="120"
+              />
+              <el-table-column
+                prop="hbw"
+                label="HBW"
+                width="80"
+              />
+              <el-table-column
+                prop="hrc"
+                label="HRC"
+                width="80"
+              />
+              <el-table-column
+                prop="hv"
+                label="HV"
+                width="80"
+              />
+              <el-table-column
+                prop="hardnessRemark"
+                label="备注"
+                width="120"
+              />
+            </el-table-column>
 
-                        <!-- 冲击实验 -->
-                        <el-table-column label="冲击实验" align="center">
-                            <el-table-column label="取样图号" prop="impactDrawingNo" width="120" />
-                            <el-table-column label="试样取样方向" prop="impactDirection" width="120" />
-                            <el-table-column label="试样取样位置" prop="impactPosition" width="120" />
-                            <el-table-column label="试验标准" prop="impactStandard" width="120" />
-                            <el-table-column label="试样尺寸(mm)" prop="impactSize" width="110" />
-                            <el-table-column label="试验温度(℃)" prop="impactTemp" width="110" />
-                            <el-table-column label="缺口形式" prop="impactNotch" width="100" />
-                            <el-table-column label="测试值 J" align="center">
-                                <el-table-column prop="impactKV1" label="1#" width="60" />
-                                <el-table-column prop="impactKV2" label="2#" width="60" />
-                                <el-table-column prop="impactKV3" label="3#" width="60" />
-                            </el-table-column>
-                            <el-table-column label="侧向膨胀量 mm" align="center">
-                                <el-table-column prop="lateralExpansion1" label="1#" width="80" />
-                                <el-table-column prop="lateralExpansion2" label="2#" width="80" />
-                                <el-table-column prop="lateralExpansion3" label="3#" width="80" />
-                            </el-table-column>
-                            <el-table-column label="剪切面积 %" align="center">
-                                <el-table-column prop="shearArea1" label="1#" width="70" />
-                                <el-table-column prop="shearArea2" label="2#" width="70" />
-                                <el-table-column prop="shearArea3" label="3#" width="70" />
-                            </el-table-column>
-                            <el-table-column prop="impactRemark" label="备注" width="120" />
-                        </el-table-column>
+            <!-- 晶粒度 -->
+            <el-table-column
+              label="晶粒度"
+              align="center"
+            >
+              <el-table-column
+                prop="grainDrawingNo"
+                label="取样图号"
+                width="120"
+              />
+              <el-table-column
+                prop="grainDirection"
+                label="试样取样方向"
+                width="120"
+              />
+              <el-table-column
+                prop="grainPosition"
+                label="试样取样位置"
+                width="120"
+              />
+              <el-table-column
+                prop="grainStandard"
+                label="试验标准"
+                width="120"
+              />
+              <el-table-column
+                prop="grainSize"
+                label="测试结果"
+                width="100"
+              />
+              <el-table-column
+                prop="grainRemark"
+                label="备注"
+                width="120"
+              />
+            </el-table-column>
 
-                        <!-- 硬度 -->
-                        <el-table-column label="硬度" align="center">
-                            <el-table-column prop="hardnessDrawingNo" label="取样图号" width="120" />
-                            <el-table-column prop="hardnessDirection" label="试样取样方向" width="120" />
-                            <el-table-column prop="hardnessPosition" label="试样取样位置" width="120" />
-                            <el-table-column prop="hardnessStandard" label="试验标准" width="120" />
-                            <el-table-column prop="hbw" label="HBW" width="80" />
-                            <el-table-column prop="hrc" label="HRC" width="80" />
-                            <el-table-column prop="hv" label="HV" width="80" />
-                            <el-table-column prop="hardnessRemark" label="备注" width="120" />
-                        </el-table-column>
+            <!-- 剪切试验 -->
+            <el-table-column
+              label="剪切试验"
+              align="center"
+            >
+              <el-table-column
+                prop="shearDrawingNo"
+                label="取样图号"
+                width="120"
+              />
+              <el-table-column
+                prop="shearDirection"
+                label="试样取样方向"
+                width="120"
+              />
+              <el-table-column
+                prop="shearPosition"
+                label="试样取样位置"
+                width="120"
+              />
+              <el-table-column
+                prop="shearStandard"
+                label="试验标准"
+                width="120"
+              />
+              <el-table-column
+                prop="shearSize"
+                label="试样尺寸"
+                width="100"
+              />
+              <el-table-column
+                prop="shearStrength"
+                label="结合力(MPa)"
+                width="110"
+              />
+              <el-table-column
+                prop="shearRemark"
+                label="备注"
+                width="120"
+              />
+            </el-table-column>
 
-                        <!-- 晶粒度 -->
-                        <el-table-column label="晶粒度" align="center">
-                            <el-table-column prop="grainDrawingNo" label="取样图号" width="120" />
-                            <el-table-column prop="grainDirection" label="试样取样方向" width="120" />
-                            <el-table-column prop="grainPosition" label="试样取样位置" width="120" />
-                            <el-table-column prop="grainStandard" label="试验标准" width="120" />
-                            <el-table-column prop="grainSize" label="测试结果" width="100" />
-                            <el-table-column prop="grainRemark" label="备注" width="120" />
-                        </el-table-column>
+            <!-- 非金属夹杂物 -->
+            <el-table-column
+              label="非金属夹杂物"
+              align="center"
+            >
+              <el-table-column
+                prop="inclusionDrawingNo"
+                label="取样图号"
+                width="120"
+              />
+              <el-table-column
+                prop="inclusionDirection"
+                label="试样取样方向"
+                width="120"
+              />
+              <el-table-column
+                prop="inclusionPosition"
+                label="试样取样位置"
+                width="120"
+              />
+              <el-table-column
+                prop="inclusionStandard"
+                label="试验标准"
+                width="120"
+              />
+              <el-table-column
+                label="A类"
+                align="center"
+              >
+                <el-table-column
+                  prop="inclusionA_coarse"
+                  label="粗系"
+                  width="70"
+                />
+                <el-table-column
+                  prop="inclusionA_fine"
+                  label="细系"
+                  width="70"
+                />
+              </el-table-column>
+              <el-table-column
+                label="B类"
+                align="center"
+              >
+                <el-table-column
+                  prop="inclusionB_coarse"
+                  label="粗系"
+                  width="70"
+                />
+                <el-table-column
+                  prop="inclusionB_fine"
+                  label="细系"
+                  width="70"
+                />
+              </el-table-column>
+              <el-table-column
+                label="C类"
+                align="center"
+              >
+                <el-table-column
+                  prop="inclusionC_coarse"
+                  label="粗系"
+                  width="70"
+                />
+                <el-table-column
+                  prop="inclusionC_fine"
+                  label="细系"
+                  width="70"
+                />
+              </el-table-column>
+              <el-table-column
+                label="D类"
+                align="center"
+              >
+                <el-table-column
+                  prop="inclusionD_coarse"
+                  label="粗系"
+                  width="70"
+                />
+                <el-table-column
+                  prop="inclusionD_fine"
+                  label="细系"
+                  width="70"
+                />
+              </el-table-column>
+              <el-table-column
+                prop="inclusionRemark"
+                label="备注"
+                width="120"
+              />
+            </el-table-column>
 
-                        <!-- 剪切试验 -->
-                        <el-table-column label="剪切试验" align="center">
-                            <el-table-column prop="shearDrawingNo" label="取样图号" width="120" />
-                            <el-table-column prop="shearDirection" label="试样取样方向" width="120" />
-                            <el-table-column prop="shearPosition" label="试样取样位置" width="120" />
-                            <el-table-column prop="shearStandard" label="试验标准" width="120" />
-                            <el-table-column prop="shearSize" label="试样尺寸" width="100" />
-                            <el-table-column prop="shearStrength" label="结合力(MPa)" width="110" />
-                            <el-table-column prop="shearRemark" label="备注" width="120" />
-                        </el-table-column>
+            <!-- 铁素体含量 -->
+            <el-table-column
+              label="铁素体含量"
+              align="center"
+            >
+              <el-table-column
+                prop="ferriteDrawingNo"
+                label="取样图号"
+                width="120"
+              />
+              <el-table-column
+                prop="ferriteDirection"
+                label="试样取样方向"
+                width="120"
+              />
+              <el-table-column
+                prop="ferritePosition"
+                label="试样取样位置"
+                width="120"
+              />
+              <el-table-column
+                prop="ferriteStandard"
+                label="试验标准"
+                width="120"
+              />
+              <el-table-column
+                prop="ferriteContent"
+                label="铁素体含量%"
+                width="120"
+              />
+              <el-table-column
+                prop="ferriteRemark"
+                label="备注"
+                width="120"
+              />
+            </el-table-column>
 
-                        <!-- 非金属夹杂物 -->
-                        <el-table-column label="非金属夹杂物" align="center">
-                            <el-table-column prop="inclusionDrawingNo" label="取样图号" width="120" />
-                            <el-table-column prop="inclusionDirection" label="试样取样方向" width="120" />
-                            <el-table-column prop="inclusionPosition" label="试样取样位置" width="120" />
-                            <el-table-column prop="inclusionStandard" label="试验标准" width="120" />
-                            <el-table-column label="A类" align="center">
-                                <el-table-column prop="inclusionA_coarse" label="粗系" width="70" />
-                                <el-table-column prop="inclusionA_fine" label="细系" width="70" />
-                            </el-table-column>
-                            <el-table-column label="B类" align="center">
-                                <el-table-column prop="inclusionB_coarse" label="粗系" width="70" />
-                                <el-table-column prop="inclusionB_fine" label="细系" width="70" />
-                            </el-table-column>
-                            <el-table-column label="C类" align="center">
-                                <el-table-column prop="inclusionC_coarse" label="粗系" width="70" />
-                                <el-table-column prop="inclusionC_fine" label="细系" width="70" />
-                            </el-table-column>
-                            <el-table-column label="D类" align="center">
-                                <el-table-column prop="inclusionD_coarse" label="粗系" width="70" />
-                                <el-table-column prop="inclusionD_fine" label="细系" width="70" />
-                            </el-table-column>
-                            <el-table-column prop="inclusionRemark" label="备注" width="120" />
-                        </el-table-column>
+            <!-- 带状组织评定 -->
+            <el-table-column
+              label="带状组织评定"
+              align="center"
+            >
+              <el-table-column
+                prop="bandDrawingNo"
+                label="取样图号"
+                width="120"
+              />
+              <el-table-column
+                prop="bandDirection"
+                label="试样取样方向"
+                width="120"
+              />
+              <el-table-column
+                prop="bandPosition"
+                label="试样取样位置"
+                width="120"
+              />
+              <el-table-column
+                prop="bandStandard"
+                label="试验标准"
+                width="120"
+              />
+              <el-table-column
+                prop="bandRating"
+                label="带状组织评级"
+                width="120"
+              />
+              <el-table-column
+                prop="bandRemark"
+                label="备注"
+                width="120"
+              />
+            </el-table-column>
 
-                        <!-- 铁素体含量 -->
-                        <el-table-column label="铁素体含量" align="center">
-                            <el-table-column prop="ferriteDrawingNo" label="取样图号" width="120" />
-                            <el-table-column prop="ferriteDirection" label="试样取样方向" width="120" />
-                            <el-table-column prop="ferritePosition" label="试样取样位置" width="120" />
-                            <el-table-column prop="ferriteStandard" label="试验标准" width="120" />
-                            <el-table-column prop="ferriteContent" label="铁素体含量%" width="120" />
-                            <el-table-column prop="ferriteRemark" label="备注" width="120" />
-                        </el-table-column>
+            <!-- 有害相检测 -->
+            <el-table-column
+              label="有害相检测"
+              align="center"
+            >
+              <el-table-column
+                prop="harmfulDrawingNo"
+                label="取样图号"
+                width="120"
+              />
+              <el-table-column
+                prop="harmfulDirection"
+                label="试样取样方向"
+                width="120"
+              />
+              <el-table-column
+                prop="harmfulPosition"
+                label="试样取样位置"
+                width="120"
+              />
+              <el-table-column
+                prop="harmfulStandard"
+                label="试验标准"
+                width="120"
+              />
+              <el-table-column
+                prop="harmfulConclusion"
+                label="试验结论"
+                width="120"
+              />
+              <el-table-column
+                prop="harmfulRemark"
+                label="备注"
+                width="120"
+              />
+            </el-table-column>
 
-                        <!-- 带状组织评定 -->
-                        <el-table-column label="带状组织评定" align="center">
-                            <el-table-column prop="bandDrawingNo" label="取样图号" width="120" />
-                            <el-table-column prop="bandDirection" label="试样取样方向" width="120" />
-                            <el-table-column prop="bandPosition" label="试样取样位置" width="120" />
-                            <el-table-column prop="bandStandard" label="试验标准" width="120" />
-                            <el-table-column prop="bandRating" label="带状组织评级" width="120" />
-                            <el-table-column prop="bandRemark" label="备注" width="120" />
-                        </el-table-column>
+            <!-- 金相组织 -->
+            <el-table-column
+              label="金相组织"
+              align="center"
+            >
+              <el-table-column
+                prop="microDrawingNo"
+                label="取样图号"
+                width="120"
+              />
+              <el-table-column
+                prop="microDirection"
+                label="试样取样方向"
+                width="120"
+              />
+              <el-table-column
+                prop="microPosition"
+                label="试样取样位置"
+                width="120"
+              />
+              <el-table-column
+                prop="microStandard"
+                label="试验标准"
+                width="120"
+              />
+              <el-table-column
+                prop="microstructure"
+                label="试验结论"
+                width="120"
+              />
+              <el-table-column
+                prop="microRemark"
+                label="备注"
+                width="120"
+              />
+            </el-table-column>
+          </el-table>
+          <el-pagination
+            v-model:current-page="mechPage.current"
+            v-model:page-size="mechPage.size"
+            :page-sizes="[10, 20, 50, 100]"
+            :total="mechTotal"
+            layout="total, sizes, prev, pager, next, jumper"
+            class="pagination"
+            @size-change="handleMechSizeChange"
+            @current-change="handleMechCurrentChange"
+          />
+        </div>
+      </el-tab-pane>
 
-                        <!-- 有害相检测 -->
-                        <el-table-column label="有害相检测" align="center">
-                            <el-table-column prop="harmfulDrawingNo" label="取样图号" width="120" />
-                            <el-table-column prop="harmfulDirection" label="试样取样方向" width="120" />
-                            <el-table-column prop="harmfulPosition" label="试样取样位置" width="120" />
-                            <el-table-column prop="harmfulStandard" label="试验标准" width="120" />
-                            <el-table-column prop="harmfulConclusion" label="试验结论" width="120" />
-                            <el-table-column prop="harmfulRemark" label="备注" width="120" />
-                        </el-table-column>
+      <!-- 页签4: CTOD & 腐蚀试验（后端接口） -->
+      <el-tab-pane
+        label="CTOD & 腐蚀试验"
+        name="corrosion"
+      >
+        <div class="query-bar">
+          <el-input
+            v-model="corrQuery.orderNo"
+            placeholder="订单号"
+            clearable
+            style="width:180px"
+          />
+          <el-input
+            v-model="corrQuery.material"
+            placeholder="材质"
+            clearable
+            style="width:150px"
+          />
+          <el-input
+            v-model="corrQuery.heatNo"
+            placeholder="炉号"
+            clearable
+            style="width:180px"
+          />
+          <el-button
+            type="primary"
+            @click="searchCorr"
+          >
+            查询
+          </el-button>
+          <el-button @click="resetCorr">
+            重置
+          </el-button>
+          <el-button
+            type="success"
+            style="margin-left: auto;"
+            @click="exportCorr"
+          >
+            导出
+          </el-button>
+        </div>
+        <div class="table-wrapper">
+          <el-table
+            v-loading="loading"
+            :data="corrList"
+            border
+            stripe
+            max-height="600"
+          >
+            <!-- 基础信息 -->
+            <el-table-column
+              prop="registrar"
+              label="登记人员"
+              width="100"
+              fixed="left"
+            />
+            <el-table-column
+              prop="orderNo"
+              label="订单号"
+              width="140"
+            />
+            <el-table-column
+              prop="sheetNo"
+              label="委托单号"
+              width="140"
+            />
+            <el-table-column
+              prop="inspectionNo"
+              label="报检单号"
+              width="140"
+            />
+            <el-table-column
+              prop="material"
+              label="材质"
+              width="100"
+            />
+            <el-table-column
+              prop="heatNo"
+              label="原材料炉号"
+              width="150"
+            />
+            <el-table-column
+              prop="heatTreatmentNo"
+              label="热处理炉号"
+              width="150"
+            />
+            <el-table-column
+              prop="spec"
+              label="试块尺寸/产品尺寸"
+              width="140"
+            />
+            <el-table-column
+              prop="heatTreatmentParam"
+              label="热处理工艺与参数"
+              width="160"
+            />
 
-                        <!-- 金相组织 -->
-                        <el-table-column label="金相组织" align="center">
-                            <el-table-column prop="microDrawingNo" label="取样图号" width="120" />
-                            <el-table-column prop="microDirection" label="试样取样方向" width="120" />
-                            <el-table-column prop="microPosition" label="试样取样位置" width="120" />
-                            <el-table-column prop="microStandard" label="试验标准" width="120" />
-                            <el-table-column prop="microstructure" label="试验结论" width="120" />
-                            <el-table-column prop="microRemark" label="备注" width="120" />
-                        </el-table-column>
-                    </el-table>
-                    <el-pagination v-model:current-page="mechPage.current"
-                                   v-model:page-size="mechPage.size"
-                                   :page-sizes="[10, 20, 50, 100]"
-                                   :total="mechTotal"
-                                   layout="total, sizes, prev, pager, next, jumper"
-                                   @size-change="handleMechSizeChange"
-                                   @current-change="handleMechCurrentChange"
-                                   class="pagination" />
-                </div>
-            </el-tab-pane>
+            <!-- CTOD 试验 -->
+            <el-table-column
+              label="CTOD 试验"
+              align="center"
+            >
+              <el-table-column
+                prop="ctodDrawingNo"
+                label="取样图号"
+                width="120"
+              />
+              <el-table-column
+                prop="ctodDirection"
+                label="试样取样方向"
+                width="120"
+              />
+              <el-table-column
+                prop="ctodPosition"
+                label="试样取样位置"
+                width="120"
+              />
+              <el-table-column
+                prop="ctodStandard"
+                label="试验标准"
+                width="120"
+              />
+              <el-table-column
+                prop="ctodEnvironment"
+                label="试验环境"
+                width="120"
+              />
+              <el-table-column
+                prop="ctodTemp"
+                label="试验温度(℃)"
+                width="110"
+              />
+              <el-table-column
+                prop="ctodSize"
+                label="试样尺寸(mm)"
+                width="110"
+              />
+              <el-table-column
+                label="测试值 mm"
+                align="center"
+              >
+                <el-table-column
+                  prop="ctodValue1"
+                  label="1#"
+                  width="70"
+                />
+                <el-table-column
+                  prop="ctodValue2"
+                  label="2#"
+                  width="70"
+                />
+                <el-table-column
+                  prop="ctodValue3"
+                  label="3#"
+                  width="70"
+                />
+              </el-table-column>
+              <el-table-column
+                prop="ctodRemark"
+                label="备注"
+                width="120"
+              />
+            </el-table-column>
 
-            <!-- 页签4: CTOD & 腐蚀试验（后端接口） -->
-            <el-tab-pane label="CTOD & 腐蚀试验" name="corrosion">
-                <div class="query-bar">
-                    <el-input v-model="corrQuery.orderNo" placeholder="订单号" clearable style="width:180px" />
-                    <el-input v-model="corrQuery.material" placeholder="材质" clearable style="width:150px" />
-                    <el-input v-model="corrQuery.heatNo" placeholder="炉号" clearable style="width:180px" />
-                    <el-button type="primary" @click="searchCorr">查询</el-button>
-                    <el-button @click="resetCorr">重置</el-button>
-                    <el-button type="success" @click="exportCorr" style="margin-left: auto;">导出</el-button>
-                </div>
-                <div class="table-wrapper">
-                    <el-table :data="corrList" border stripe v-loading="loading" max-height="600">
-                        <!-- 基础信息 -->
-                        <el-table-column prop="registrar" label="登记人员" width="100" fixed="left" />
-                        <el-table-column prop="orderNo" label="订单号" width="140" />
-                        <el-table-column prop="sheetNo" label="委托单号" width="140" />
-                        <el-table-column prop="inspectionNo" label="报检单号" width="140" />
-                        <el-table-column prop="material" label="材质" width="100" />
-                        <el-table-column prop="heatNo" label="原材料炉号" width="150" />
-                        <el-table-column prop="heatTreatmentNo" label="热处理炉号" width="150" />
-                        <el-table-column prop="spec" label="试块尺寸/产品尺寸" width="140" />
-                        <el-table-column prop="heatTreatmentParam" label="热处理工艺与参数" width="160" />
+            <!-- HIC 试验 -->
+            <el-table-column
+              label="HIC 试验"
+              align="center"
+            >
+              <el-table-column
+                prop="hicDrawingNo"
+                label="取样图号"
+                width="120"
+              />
+              <el-table-column
+                prop="hicDirection"
+                label="试样取样方向"
+                width="120"
+              />
+              <el-table-column
+                prop="hicPosition"
+                label="试样取样位置"
+                width="120"
+              />
+              <el-table-column
+                prop="hicStandard"
+                label="试验标准"
+                width="120"
+              />
+              <el-table-column
+                prop="hicSolution"
+                label="试验溶液"
+                width="120"
+              />
+              <el-table-column
+                prop="hicTemp"
+                label="试验温度(℃)"
+                width="110"
+              />
+              <el-table-column
+                prop="hicTime"
+                label="试验时间(H)"
+                width="110"
+              />
+              <el-table-column
+                prop="hicSize"
+                label="试样尺寸(mm)"
+                width="110"
+              />
+              <el-table-column
+                label="CLR%"
+                align="center"
+              >
+                <el-table-column
+                  prop="hicClr1"
+                  label="1#"
+                  width="60"
+                />
+                <el-table-column
+                  prop="hicClr2"
+                  label="2#"
+                  width="60"
+                />
+                <el-table-column
+                  prop="hicClr3"
+                  label="3#"
+                  width="60"
+                />
+              </el-table-column>
+              <el-table-column
+                label="CTR%"
+                align="center"
+              >
+                <el-table-column
+                  prop="hicCtr1"
+                  label="1#"
+                  width="60"
+                />
+                <el-table-column
+                  prop="hicCtr2"
+                  label="2#"
+                  width="60"
+                />
+                <el-table-column
+                  prop="hicCtr3"
+                  label="3#"
+                  width="60"
+                />
+              </el-table-column>
+              <el-table-column
+                label="CSR%"
+                align="center"
+              >
+                <el-table-column
+                  prop="hicCsr1"
+                  label="1#"
+                  width="60"
+                />
+                <el-table-column
+                  prop="hicCsr2"
+                  label="2#"
+                  width="60"
+                />
+                <el-table-column
+                  prop="hicCsr3"
+                  label="3#"
+                  width="60"
+                />
+              </el-table-column>
+              <el-table-column
+                label="CAR%"
+                align="center"
+              >
+                <el-table-column
+                  prop="hicCar1"
+                  label="1#"
+                  width="60"
+                />
+                <el-table-column
+                  prop="hicCar2"
+                  label="2#"
+                  width="60"
+                />
+                <el-table-column
+                  prop="hicCar3"
+                  label="3#"
+                  width="60"
+                />
+              </el-table-column>
+              <el-table-column
+                prop="hicRemark"
+                label="备注"
+                width="120"
+              />
+            </el-table-column>
 
-                        <!-- CTOD 试验 -->
-                        <el-table-column label="CTOD 试验" align="center">
-                            <el-table-column prop="ctodDrawingNo" label="取样图号" width="120" />
-                            <el-table-column prop="ctodDirection" label="试样取样方向" width="120" />
-                            <el-table-column prop="ctodPosition" label="试样取样位置" width="120" />
-                            <el-table-column prop="ctodStandard" label="试验标准" width="120" />
-                            <el-table-column prop="ctodEnvironment" label="试验环境" width="120" />
-                            <el-table-column prop="ctodTemp" label="试验温度(℃)" width="110" />
-                            <el-table-column prop="ctodSize" label="试样尺寸(mm)" width="110" />
-                            <el-table-column label="测试值 mm" align="center">
-                                <el-table-column prop="ctodValue1" label="1#" width="70" />
-                                <el-table-column prop="ctodValue2" label="2#" width="70" />
-                                <el-table-column prop="ctodValue3" label="3#" width="70" />
-                            </el-table-column>
-                            <el-table-column prop="ctodRemark" label="备注" width="120" />
-                        </el-table-column>
+            <!-- SSC 试验 -->
+            <el-table-column
+              label="SSC 试验"
+              align="center"
+            >
+              <el-table-column
+                prop="sscDrawingNo"
+                label="取样图号"
+                width="120"
+              />
+              <el-table-column
+                prop="sscDirection"
+                label="试样取样方向"
+                width="120"
+              />
+              <el-table-column
+                prop="sscPosition"
+                label="试样取样位置"
+                width="120"
+              />
+              <el-table-column
+                prop="sscStandard"
+                label="试验标准"
+                width="120"
+              />
+              <el-table-column
+                prop="sscSolution"
+                label="试验溶液"
+                width="120"
+              />
+              <el-table-column
+                prop="sscTemp"
+                label="试验温度(℃)"
+                width="110"
+              />
+              <el-table-column
+                prop="sscTime"
+                label="试验时间(H)"
+                width="110"
+              />
+              <el-table-column
+                prop="sscSize"
+                label="试样尺寸(mm)"
+                width="110"
+              />
+              <el-table-column
+                label="测试值"
+                align="center"
+              >
+                <el-table-column
+                  prop="sscValue1"
+                  label="1#"
+                  width="90"
+                />
+                <el-table-column
+                  prop="sscValue2"
+                  label="2#"
+                  width="90"
+                />
+                <el-table-column
+                  prop="sscValue3"
+                  label="3#"
+                  width="90"
+                />
+              </el-table-column>
+              <el-table-column
+                prop="sscRemark"
+                label="备注"
+                width="120"
+              />
+            </el-table-column>
 
-                        <!-- HIC 试验 -->
-                        <el-table-column label="HIC 试验" align="center">
-                            <el-table-column prop="hicDrawingNo" label="取样图号" width="120" />
-                            <el-table-column prop="hicDirection" label="试样取样方向" width="120" />
-                            <el-table-column prop="hicPosition" label="试样取样位置" width="120" />
-                            <el-table-column prop="hicStandard" label="试验标准" width="120" />
-                            <el-table-column prop="hicSolution" label="试验溶液" width="120" />
-                            <el-table-column prop="hicTemp" label="试验温度(℃)" width="110" />
-                            <el-table-column prop="hicTime" label="试验时间(H)" width="110" />
-                            <el-table-column prop="hicSize" label="试样尺寸(mm)" width="110" />
-                            <el-table-column label="CLR%" align="center">
-                                <el-table-column prop="hicClr1" label="1#" width="60" />
-                                <el-table-column prop="hicClr2" label="2#" width="60" />
-                                <el-table-column prop="hicClr3" label="3#" width="60" />
-                            </el-table-column>
-                            <el-table-column label="CTR%" align="center">
-                                <el-table-column prop="hicCtr1" label="1#" width="60" />
-                                <el-table-column prop="hicCtr2" label="2#" width="60" />
-                                <el-table-column prop="hicCtr3" label="3#" width="60" />
-                            </el-table-column>
-                            <el-table-column label="CSR%" align="center">
-                                <el-table-column prop="hicCsr1" label="1#" width="60" />
-                                <el-table-column prop="hicCsr2" label="2#" width="60" />
-                                <el-table-column prop="hicCsr3" label="3#" width="60" />
-                            </el-table-column>
-                            <el-table-column label="CAR%" align="center">
-                                <el-table-column prop="hicCar1" label="1#" width="60" />
-                                <el-table-column prop="hicCar2" label="2#" width="60" />
-                                <el-table-column prop="hicCar3" label="3#" width="60" />
-                            </el-table-column>
-                            <el-table-column prop="hicRemark" label="备注" width="120" />
-                        </el-table-column>
+            <!-- 晶间腐蚀 -->
+            <el-table-column
+              label="晶间腐蚀"
+              align="center"
+            >
+              <el-table-column
+                prop="igcDrawingNo"
+                label="取样图号"
+                width="120"
+              />
+              <el-table-column
+                prop="igcDirection"
+                label="试样取样方向"
+                width="120"
+              />
+              <el-table-column
+                prop="igcPosition"
+                label="试样取样位置"
+                width="120"
+              />
+              <el-table-column
+                prop="igcStandard"
+                label="试验标准"
+                width="120"
+              />
+              <el-table-column
+                prop="igcSolution"
+                label="试验溶液"
+                width="120"
+              />
+              <el-table-column
+                prop="igcTemp"
+                label="试验温度(℃)"
+                width="110"
+              />
+              <el-table-column
+                prop="igcTime"
+                label="试验时间(H)"
+                width="110"
+              />
+              <el-table-column
+                prop="igcSize"
+                label="试样尺寸(mm)"
+                width="110"
+              />
+              <el-table-column
+                prop="igcRate"
+                label="腐蚀速率(mm/y)"
+                width="130"
+              />
+              <el-table-column
+                prop="igcRemark"
+                label="备注"
+                width="120"
+              />
+            </el-table-column>
 
-                        <!-- SSC 试验 -->
-                        <el-table-column label="SSC 试验" align="center">
-                            <el-table-column prop="sscDrawingNo" label="取样图号" width="120" />
-                            <el-table-column prop="sscDirection" label="试样取样方向" width="120" />
-                            <el-table-column prop="sscPosition" label="试样取样位置" width="120" />
-                            <el-table-column prop="sscStandard" label="试验标准" width="120" />
-                            <el-table-column prop="sscSolution" label="试验溶液" width="120" />
-                            <el-table-column prop="sscTemp" label="试验温度(℃)" width="110" />
-                            <el-table-column prop="sscTime" label="试验时间(H)" width="110" />
-                            <el-table-column prop="sscSize" label="试样尺寸(mm)" width="110" />
-                            <el-table-column label="测试值" align="center">
-                                <el-table-column prop="sscValue1" label="1#" width="90" />
-                                <el-table-column prop="sscValue2" label="2#" width="90" />
-                                <el-table-column prop="sscValue3" label="3#" width="90" />
-                            </el-table-column>
-                            <el-table-column prop="sscRemark" label="备注" width="120" />
-                        </el-table-column>
-
-                        <!-- 晶间腐蚀 -->
-                        <el-table-column label="晶间腐蚀" align="center">
-                            <el-table-column prop="igcDrawingNo" label="取样图号" width="120" />
-                            <el-table-column prop="igcDirection" label="试样取样方向" width="120" />
-                            <el-table-column prop="igcPosition" label="试样取样位置" width="120" />
-                            <el-table-column prop="igcStandard" label="试验标准" width="120" />
-                            <el-table-column prop="igcSolution" label="试验溶液" width="120" />
-                            <el-table-column prop="igcTemp" label="试验温度(℃)" width="110" />
-                            <el-table-column prop="igcTime" label="试验时间(H)" width="110" />
-                            <el-table-column prop="igcSize" label="试样尺寸(mm)" width="110" />
-                            <el-table-column prop="igcRate" label="腐蚀速率(mm/y)" width="130" />
-                            <el-table-column prop="igcRemark" label="备注" width="120" />
-                        </el-table-column>
-
-                        <!-- 点腐蚀 -->
-                        <el-table-column label="点腐蚀" align="center">
-                            <el-table-column prop="pittingDrawingNo" label="取样图号" width="120" />
-                            <el-table-column prop="pittingDirection" label="试样取样方向" width="120" />
-                            <el-table-column prop="pittingPosition" label="试样取样位置" width="120" />
-                            <el-table-column prop="pittingStandard" label="试验标准" width="120" />
-                            <el-table-column prop="pittingSolution" label="试验溶液" width="120" />
-                            <el-table-column prop="pittingTemp" label="试验温度(℃)" width="110" />
-                            <el-table-column prop="pittingTime" label="试验时间(小时)" width="120" />
-                            <el-table-column prop="pittingSize" label="试样尺寸(mm)" width="110" />
-                            <el-table-column prop="pittingLoss" label="重量损失(g/m²)" width="130" />
-                            <el-table-column prop="pittingDesc" label="点蚀情况(20倍)" width="140" />
-                            <el-table-column prop="pittingRemark" label="备注" width="120" />
-                        </el-table-column>
-                    </el-table>
-                    <el-pagination v-model:current-page="corrPage.current"
-                                   v-model:page-size="corrPage.size"
-                                   :page-sizes="[10, 20, 50, 100]"
-                                   :total="corrTotal"
-                                   layout="total, sizes, prev, pager, next, jumper"
-                                   @size-change="handleCorrSizeChange"
-                                   @current-change="handleCorrCurrentChange"
-                                   class="pagination" />
-                </div>
-            </el-tab-pane>
-        </el-tabs>
-    </div>
+            <!-- 点腐蚀 -->
+            <el-table-column
+              label="点腐蚀"
+              align="center"
+            >
+              <el-table-column
+                prop="pittingDrawingNo"
+                label="取样图号"
+                width="120"
+              />
+              <el-table-column
+                prop="pittingDirection"
+                label="试样取样方向"
+                width="120"
+              />
+              <el-table-column
+                prop="pittingPosition"
+                label="试样取样位置"
+                width="120"
+              />
+              <el-table-column
+                prop="pittingStandard"
+                label="试验标准"
+                width="120"
+              />
+              <el-table-column
+                prop="pittingSolution"
+                label="试验溶液"
+                width="120"
+              />
+              <el-table-column
+                prop="pittingTemp"
+                label="试验温度(℃)"
+                width="110"
+              />
+              <el-table-column
+                prop="pittingTime"
+                label="试验时间(小时)"
+                width="120"
+              />
+              <el-table-column
+                prop="pittingSize"
+                label="试样尺寸(mm)"
+                width="110"
+              />
+              <el-table-column
+                prop="pittingLoss"
+                label="重量损失(g/m²)"
+                width="130"
+              />
+              <el-table-column
+                prop="pittingDesc"
+                label="点蚀情况(20倍)"
+                width="140"
+              />
+              <el-table-column
+                prop="pittingRemark"
+                label="备注"
+                width="120"
+              />
+            </el-table-column>
+          </el-table>
+          <el-pagination
+            v-model:current-page="corrPage.current"
+            v-model:page-size="corrPage.size"
+            :page-sizes="[10, 20, 50, 100]"
+            :total="corrTotal"
+            layout="total, sizes, prev, pager, next, jumper"
+            class="pagination"
+            @size-change="handleCorrSizeChange"
+            @current-change="handleCorrCurrentChange"
+          />
+        </div>
+      </el-tab-pane>
+    </el-tabs>
+  </div>
 </template>
 
 <script setup>

@@ -1,594 +1,1207 @@
 ﻿<template>
-    <div class="config-container" style="padding: 20px;">
-        <h2>检测项目模板配置</h2>
+  <div
+    class="config-container"
+    style="padding: 20px;"
+  >
+    <h2>检测项目模板配置</h2>
 
-        <!-- 选择检测项目下拉框 → 云表实时项目 -->
-        <el-select v-model="selectedProjectCode"
-                   placeholder="请选择检测项目"
-                   @change="loadSchemes"
-                   style="width: 300px; margin-bottom: 20px;"
-                   clearable>
-            <el-option v-for="p in projects"
-                       :key="p.EnvCode || p.projectCode"
-                       :label="p.ProjectName || p.projectName"
-                       :value="p.EnvCode || p.projectCode" />
-        </el-select>
+    <!-- 选择检测项目下拉框 → 云表实时项目 -->
+    <el-select
+      v-model="selectedProjectCode"
+      placeholder="请选择检测项目"
+      style="width: 300px; margin-bottom: 20px;"
+      clearable
+      @change="loadSchemes"
+    >
+      <el-option
+        v-for="p in projects"
+        :key="p.EnvCode || p.projectCode"
+        :label="p.ProjectName || p.projectName"
+        :value="p.EnvCode || p.projectCode"
+      />
+    </el-select>
 
-        <!-- 配置方案列表 -->
-        <div class="scheme-list" v-if="selectedProjectCode">
-            <el-button type="primary" @click="showAddDialog">+ 新增配置方案</el-button>
-            <el-table :data="schemes"
-                      border
-                      style="margin-top: 10px; width: 100%;"
-                      stripe>
-                <el-table-column label="技术要求" prop="SchemeName" width="200" />
-                <el-table-column label="版本" prop="ConfigVersion" width="80" />
-                <el-table-column label="创建人" prop="createName" width="120" />
-                <el-table-column label="创建时间" prop="CreateTime" width="180">
-                    <template #default="{ row }">
-                        {{ formatDate(row.CreateTime) }}
-                    </template>
-                </el-table-column>
-                <el-table-column label="修改人" prop="updateName" width="120" />
-                <el-table-column label="修改时间" prop="UpdateTime" width="180">
-                    <template #default="{ row }">
-                        {{ formatDate(row.UpdateTime) }}
-                    </template>
-                </el-table-column>
-                <el-table-column label="操作" width="200">
-                    <template #default="{ row }">
-                        <el-button type="text" size="small" @click="editScheme(row)">编辑</el-button>
-                        <el-button type="text" size="small" color="danger" @click="deleteScheme(row.SchemeId)">删除</el-button>
-                    </template>
-                </el-table-column>
-            </el-table>
+    <!-- 配置方案列表 -->
+    <div
+      v-if="selectedProjectCode"
+      class="scheme-list"
+    >
+      <el-button
+        type="primary"
+        @click="showAddDialog"
+      >
+        + 新增配置方案
+      </el-button>
+      <el-table
+        :data="schemes"
+        border
+        style="margin-top: 10px; width: 100%;"
+        stripe
+      >
+        <el-table-column
+          label="技术要求"
+          prop="SchemeName"
+          width="200"
+        />
+        <el-table-column
+          label="版本"
+          prop="ConfigVersion"
+          width="80"
+        />
+        <el-table-column
+          label="创建人"
+          prop="createName"
+          width="120"
+        />
+        <el-table-column
+          label="创建时间"
+          prop="CreateTime"
+          width="180"
+        >
+          <template #default="{ row }">
+            {{ formatDate(row.CreateTime) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="修改人"
+          prop="updateName"
+          width="120"
+        />
+        <el-table-column
+          label="修改时间"
+          prop="UpdateTime"
+          width="180"
+        >
+          <template #default="{ row }">
+            {{ formatDate(row.UpdateTime) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="操作"
+          width="200"
+        >
+          <template #default="{ row }">
+            <el-button
+              type="text"
+              size="small"
+              @click="editScheme(row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              type="text"
+              size="small"
+              color="danger"
+              @click="deleteScheme(row.SchemeId)"
+            >
+              删除
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
+
+    <!-- 新增/编辑弹窗（核心配置区域） -->
+    <el-dialog
+      v-model="dialogVisible"
+      width="98%"
+      append-to-body
+      :close-on-click-modal="false"
+    >
+      <template #header>
+        <div style="width: 100%; text-align: center; font-size: 18px; font-weight: 600; padding: 10px 0;">
+          {{ isEdit ? '编辑方案' : '新增配置方案' }}
+        </div>
+      </template>
+
+      <el-form
+        :model="form"
+        label-width="120px"
+        style="margin-bottom: 20px;"
+      >
+        <el-form-item
+          label="技术要求"
+          required
+        >
+          <el-select
+            v-model="form.techSpec_code"
+            placeholder="请选择技术要求"
+            style="width: 400px;"
+            clearable
+            filterable
+            :loading="techLoading"
+          >
+            <el-option
+              v-for="item in techList"
+              :key="item.Id"
+              :label="item.Name"
+              :value="item.Id"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item
+          label="项目标题（中英文）"
+          label-width="140px"
+        >
+          <div style="display: flex; gap: 10px;">
+            <el-input
+              v-model="form.ProjectTitle"
+              placeholder="中文标题（如：室温拉伸试验）"
+              style="width: 200px;"
+              size="small"
+            />
+            <el-input
+              v-model="form.ProjectEnTitle"
+              placeholder="英文标题（如：Tensile Test at Room Temperature）"
+              style="width: 250px;"
+              size="small"
+            />
+          </div>
+        </el-form-item>
+        <el-form-item
+          label="检测依据（中英文）"
+          label-width="140px"
+        >
+          <div style="display: flex; gap: 10px;">
+            <el-input
+              v-model="form.TestReference"
+              placeholder="中文（如：ASTM A370-24）"
+              style="width: 200px;"
+              size="small"
+            />
+            <el-input
+              v-model="form.TestReferenceEn"
+              placeholder="英文（如：Test Reference）"
+              style="width: 250px;"
+              size="small"
+            />
+          </div>
+        </el-form-item>
+        <el-form-item label-width="140px">
+          <el-button
+            type="success"
+            size="small"
+            @click="showPreviewDialog"
+          >
+            📊 表格可视化预览
+          </el-button>
+        </el-form-item>
+
+        <el-form-item
+          v-if="selectedProjectName.includes('维氏') || form.ProjectTitle.includes('维氏')"
+          label="显示转换行"
+          label-width="140px"
+        >
+          <el-switch
+            v-model="form.EnableConversion"
+            active-text="开启"
+            inactive-text="关闭"
+          />
+        </el-form-item>
+      </el-form>
+
+      <!-- 试样参数配置 -->
+      <div style="margin-bottom: 15px;">
+        <div style="width: 100%;">
+          <el-card shadow="hover">
+            <template #header>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h4 style="margin: 0;">
+                  试样参数（尺寸/温度/缺口）
+                </h4>
+                <el-button
+                  type="primary"
+                  size="small"
+                  @click="addParamItem"
+                >
+                  + 新增
+                </el-button>
+              </div>
+            </template>
+            <div
+              ref="paramRef"
+              class="param-list"
+              style="border: 1px solid #e6e6e6; padding: 10px; min-height: 150px; background: #fff;"
+            >
+                <div v-for="(param, index) in form.ParamItems"
+                     :key="param.id"
+                     style="display: flex; align-items: center; padding: 8px; margin-bottom: 8px; background: #f9f9f9; border-radius: 4px;">
+                    <i class="el-icon-menu"
+                       style="cursor: move; margin-right: 10px; color: #999;" />
+                    <div style="flex: 1; display: flex; gap: 10px; flex-wrap: wrap;">
+                        <el-input v-model="param.label"
+                                  placeholder="中文名称"
+                                  style="width: 150px;"
+                                  size="small" />
+                        <el-input v-model="param.enLabel"
+                                  placeholder="英文名称"
+                                  style="width: 180px;"
+                                  size="small" />
+                        <el-select v-model="param.yunbiaoField"
+                                   placeholder="绑定云表字段"
+                                   style="width: 160px;"
+                                   size="small"
+                                   clearable>
+                            <el-option v-for="field in yunbiaoFields"
+                                       :key="field.FieldName"
+                                       :label="`${field.FieldAlias} (${field.FieldName})`"
+                                       :value="field.FieldAlias" />
+                        </el-select>
+                    </div>
+                    <el-button type="text"
+                               color="danger"
+                               size="small"
+                               @click="deleteParamItem(index)">
+                        删除
+                    </el-button>
+                    <el-button type="text" size="small" :disabled="index === 0" @click="moveUp(form.ParamItems, index)">↑</el-button>
+                    <el-button type="text" size="small" :disabled="index === form.ParamItems.length - 1" @click="moveDown(form.ParamItems, index)">↓</el-button>
+                </div>
+              <div
+                v-if="form.ParamItems.length === 0"
+                style="text-align: center; color: #999; padding: 10px;"
+              >
+                请添加：尺寸类型、测试温度、缺口类型（支持中英文）
+              </div>
+            </div>
+          </el-card>
+        </div>
+      </div>
+
+      <!-- 左→右水平布局：基础列 → 扩展列 → 尾部/特殊模块 -->
+      <div
+        class="config-main"
+        style="display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px;"
+      >
+        <!-- 左侧：基础列（左侧固定列） -->
+        <div
+          class="config-panel"
+          style="width: 28%; min-width: 380px;"
+        >
+          <el-card
+            shadow="hover"
+            style="height: 100%;"
+          >
+            <template #header>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h4 style="margin: 0;">
+                  基础列（左侧固定列）
+                </h4>
+                <div>
+                  <el-button
+                    type="primary"
+                    size="small"
+                    @click="addColumn('base')"
+                  >
+                    + 新增
+                  </el-button>
+                  <el-button
+                    type="warning"
+                    size="small"
+                    style="margin-left: 8px;"
+                    @click="resetColumns('base')"
+                  >
+                    清空
+                  </el-button>
+                </div>
+              </div>
+            </template>
+            <div
+              ref="baseColumnRef"
+              class="column-list"
+              style="border: 1px solid #e6e6e6; padding: 10px; min-height: 350px; max-height: 500px; overflow-y: auto; background: #fff;"
+            >
+                <div v-for="(col, index) in form.BaseColumns"
+                     :key="col.id"
+                     class="column-item"
+                     style="display: flex; align-items: center; padding: 8px; margin-bottom: 8px; background: #f9f9f9; border-radius: 4px;">
+                    <i class="el-icon-menu"
+                       style="cursor: move; margin-right: 10px; color: #999;" />
+                    <div style="flex: 1; display: flex; gap: 10px; flex-wrap: wrap;">
+                        <el-input v-model="col.label"
+                                  placeholder="中文列名"
+                                  style="width: 150px;"
+                                  size="small" />
+                        <el-input v-model="col.enLabel"
+                                  placeholder="英文列名"
+                                  style="width: 180px;"
+                                  size="small" />
+                        <el-select v-model="col.yunbiaoField"
+                                   placeholder="绑定云表字段"
+                                   style="width: 160px;"
+                                   size="small"
+                                   clearable>
+                            <el-option v-for="field in yunbiaoFields"
+                                       :key="field.FieldName"
+                                       :label="`${field.FieldAlias} (${field.FieldName})`"
+                                       :value="field.FieldAlias" />
+                        </el-select>
+                        <el-select v-model="col.type"
+                                   placeholder="数据类型"
+                                   style="width: 120px;"
+                                   size="small">
+                            <el-option label="文本"
+                                       value="text" />
+                            <el-option label="数字"
+                                       value="number" />
+                        </el-select>
+                    </div>
+                    <el-button type="text"
+                               color="danger"
+                               size="small"
+                               @click="deleteColumn(index, 'base')">
+                        删除
+                    </el-button>
+                    <el-button type="text"
+                               size="small"
+                               :disabled="index === 0"
+                               @click="moveUp(form.BaseColumns, index)">
+                        ↑
+                    </el-button>
+                    <el-button type="text"
+                               size="small"
+                               :disabled="index === form.BaseColumns.length - 1"
+                               @click="moveDown(form.BaseColumns, index)">
+                        ↓
+                    </el-button>
+                </div>
+              <div
+                v-if="form.BaseColumns.length === 0"
+                style="text-align: center; color: #999; padding: 15px;"
+              >
+                暂无基础列，点击「新增」添加
+              </div>
+            </div>
+          </el-card>
         </div>
 
-        <!-- 新增/编辑弹窗（核心配置区域） -->
-        <el-dialog v-model="dialogVisible"
-                   width="98%"
-                   append-to-body
-                   :close-on-click-modal="false">
+        <!-- 中间：扩展列（右侧检测列，支持子列） -->
+        <div
+          class="config-panel"
+          style="width: 38%; min-width: 500px;"
+        >
+          <el-card
+            shadow="hover"
+            style="height: 100%;"
+          >
             <template #header>
-                <div style="width: 100%; text-align: center; font-size: 18px; font-weight: 600; padding: 10px 0;">
-                    {{ isEdit ? '编辑方案' : '新增配置方案' }}
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h4 style="margin: 0;">
+                  扩展列（右侧检测列，支持子列）
+                </h4>
+                <div>
+                  <el-button
+                    type="primary"
+                    size="small"
+                    @click="addColumn('extend')"
+                  >
+                    + 新增
+                  </el-button>
+                  <el-button
+                    type="warning"
+                    size="small"
+                    style="margin-left: 8px;"
+                    @click="resetColumns('extend')"
+                  >
+                    清空
+                  </el-button>
                 </div>
+              </div>
             </template>
+            <div
+              ref="extendColumnRef"
+              class="column-list"
+              style="border: 1px solid #e6e6e6; padding: 10px; min-height: 350px; max-height: 500px; overflow-y: auto; background: #fff;"
+            >
+                <div v-for="(col, index) in form.ExtendColumns"
+                     :key="col.id"
+                     class="column-item"
+                     style="display: flex; align-items: center; padding: 8px; margin-bottom: 8px; background: #f9f9f9; border-radius: 4px;">
+                    <i class="el-icon-menu"
+                       style="cursor: move; margin-right: 10px; color: #999;" />
+                    <div style="flex: 1; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                        <el-input v-model="col.label"
+                                  placeholder="中文列名"
+                                  style="width: 150px;"
+                                  size="small" />
+                        <el-input v-model="col.enLabel"
+                                  placeholder="英文列名"
+                                  style="width: 200px;"
+                                  size="small" />
+                        <el-select v-model="col.yunbiaoField"
+                                   placeholder="绑定云表字段"
+                                   style="width: 160px;"
+                                   size="small"
+                                   clearable>
+                            <el-option v-for="field in yunbiaoFields"
+                                       :key="field.FieldName"
+                                       :label="`${field.FieldAlias} (${field.FieldName})`"
+                                       :value="field.FieldAlias" />
+                        </el-select>
+                        <el-select v-model="col.type"
+                                   placeholder="数据类型"
+                                   style="width: 120px;"
+                                   size="small">
+                            <el-option label="文本"
+                                       value="text" />
+                            <el-option label="数字"
+                                       value="number" />
+                        </el-select>
 
-            <el-form :model="form" label-width="120px" style="margin-bottom: 20px;">
-                <el-form-item label="技术要求" required>
-                    <el-select v-model="form.techSpec_code"
-                               placeholder="请选择技术要求"
-                               style="width: 400px;"
-                               clearable
-                               filterable
-                               :loading="techLoading">
-                        <el-option v-for="item in techList"
-                                   :key="item.Id"
-                                   :label="item.Name"
-                                   :value="item.Id" />
+                        <!-- 动态列开关 -->
+                        <el-switch v-model="col.isDynamic"
+                                   active-text="动态列"
+                                   inactive-text="固定列"
+                                   size="small"
+                                   @change="handleDynamicChange(col)" />
+
+                        <!-- 动态行开关（与动态列互斥） -->
+                        <el-switch v-model="col.isDynamicRow"
+                                   active-text="动态行"
+                                   inactive-text="固定行"
+                                   size="small"
+                                   style="margin-left: 8px;"
+                                   @change="handleDynamicRowChange(col)" />
+
+                        <!-- 仅固定列且非动态行显示手动子列按钮 -->
+                        <el-button v-if="!col.isDynamic && !col.isDynamicRow"
+                                   type="primary"
+                                   size="small"
+                                   @click="toggleSubColumns(col)">
+                            子列
+                        </el-button>
+
+                        <!-- 模式提示 -->
+                        <span v-if="col.isDynamicRow"
+                              style="color: #409eff; font-size: 12px;">（每行 4 个结果，行数动态生成）</span>
+                        <span v-else-if="col.isDynamic"
+                              style="color: #409eff; font-size: 12px;">（自动生成试样子列）</span>
+                    </div>
+                    <el-button type="text"
+                               color="danger"
+                               size="small"
+                               @click="deleteColumn(index, 'extend')">
+                        删除
+                    </el-button>
+                    <el-button type="text"
+                               size="small"
+                               :disabled="index === 0"
+                               @click="moveUp(form.ExtendColumns, index)">
+                        ↑
+                    </el-button>
+                    <el-button type="text"
+                               size="small"
+                               :disabled="index === form.ExtendColumns.length - 1"
+                               @click="moveDown(form.ExtendColumns, index)">
+                        ↓
+                    </el-button>
+                </div>
+              <div
+                v-if="form.ExtendColumns.length === 0"
+                style="text-align: center; color: #999; padding: 15px;"
+              >
+                暂无扩展列，点击「新增」添加
+              </div>
+
+              <!-- 子列配置弹窗 -->
+              <el-dialog
+                v-model="subColumnDialogVisible"
+                width="60%"
+                title="子列配置"
+                :close-on-click-modal="false"
+              >
+                <div style="margin-bottom:10px;">
+                  <el-button
+                    type="primary"
+                    size="small"
+                    @click="addSubColumn"
+                  >
+                    + 新增子列
+                  </el-button>
+                </div>
+                <div
+                  v-for="(subCol, subIndex) in currentSubColumns"
+                  :key="subCol.id"
+                  class="column-item"
+                  style="display: flex; align-items: center; padding: 8px; margin-bottom: 8px; background: #f9f9f9; border-radius: 4px;"
+                >
+                  <i
+                    class="el-icon-menu"
+                    style="cursor: move; margin-right: 10px; color: #999;"
+                  />
+                  <div style="flex: 1; display: flex; gap: 10px; flex-wrap: wrap;">
+                    <el-input
+                      v-model="subCol.label"
+                      placeholder="中文子列名"
+                      style="width: 150px;"
+                      size="small"
+                    />
+                    <el-input
+                      v-model="subCol.enLabel"
+                      placeholder="英文子列名"
+                      style="width: 180px;"
+                      size="small"
+                    />
+                    <el-select
+                      v-model="subCol.yunbiaoField"
+                      placeholder="绑定云表字段"
+                      style="width: 160px;"
+                      size="small"
+                      clearable
+                    >
+                      <el-option
+                        v-for="field in yunbiaoFields"
+                        :key="field.FieldName"
+                        :label="`${field.FieldAlias} (${field.FieldName})`"
+                        :value="field.FieldAlias"
+                      />
                     </el-select>
-                </el-form-item>
+                    <el-select
+                      v-model="subCol.type"
+                      placeholder="数据类型"
+                      style="width: 120px;"
+                      size="small"
+                    >
+                      <el-option
+                        label="文本"
+                        value="text"
+                      />
+                      <el-option
+                        label="数字"
+                        value="number"
+                      />
+                    </el-select>
+                  </div>
+                  <el-button
+                    type="text"
+                    color="danger"
+                    size="small"
+                    @click="deleteSubColumn(subIndex)"
+                  >
+                    删除
+                  </el-button>
 
-                <el-form-item label="项目标题（中英文）" label-width="140px">
-                    <div style="display: flex; gap: 10px;">
-                        <el-input v-model="form.ProjectTitle"
-                                  placeholder="中文标题（如：室温拉伸试验）"
-                                  style="width: 200px;"
-                                  size="small" />
-                        <el-input v-model="form.ProjectEnTitle"
-                                  placeholder="英文标题（如：Tensile Test at Room Temperature）"
-                                  style="width: 250px;"
-                                  size="small" />
-                    </div>
-                </el-form-item>
-                <el-form-item label="检测依据（中英文）" label-width="140px">
-                    <div style="display: flex; gap: 10px;">
-                        <el-input v-model="form.TestReference"
-                                  placeholder="中文（如：ASTM A370-24）"
-                                  style="width: 200px;"
-                                  size="small" />
-                        <el-input v-model="form.TestReferenceEn"
-                                  placeholder="英文（如：Test Reference）"
-                                  style="width: 250px;"
-                                  size="small" />
-                    </div>
-                </el-form-item>
-                <el-form-item label-width="140px">
-                    <el-button type="success" size="small" @click="showPreviewDialog">📊 表格可视化预览</el-button>
-                </el-form-item>
-            </el-form>
-
-            <!-- 试样参数配置 -->
-            <div style="margin-bottom: 15px;">
-                <div style="width: 100%;">
-                    <el-card shadow="hover">
-                        <template #header>
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <h4 style="margin: 0;">试样参数（尺寸/温度/缺口）</h4>
-                                <el-button type="primary" size="small" @click="addParamItem">+ 新增</el-button>
-                            </div>
-                        </template>
-                        <div ref="paramRef" class="param-list" style="border: 1px solid #e6e6e6; padding: 10px; min-height: 150px; background: #fff;">
-                            <div v-for="(param, index) in form.ParamItems" :key="param.id" style="display: flex; align-items: center; padding: 8px; margin-bottom: 8px; background: #f9f9f9; border-radius: 4px;">
-                                <i class="el-icon-menu" style="cursor: move; margin-right: 10px; color: #999;"></i>
-                                <div style="flex: 1; display: flex; gap: 10px; flex-wrap: wrap;">
-                                    <el-input v-model="param.label" placeholder="中文名称" style="width: 150px;" size="small" />
-                                    <el-input v-model="param.enLabel" placeholder="英文名称" style="width: 180px;" size="small" />
-                                    <el-select v-model="param.yunbiaoField"
-                                               placeholder="绑定云表字段"
-                                               style="width: 160px;"
-                                               size="small"
-                                               clearable>
-                                        <el-option v-for="field in yunbiaoFields"
-                                                   :key="field.FieldName"
-                                                   :label="`${field.FieldAlias} (${field.FieldName})`"
-                                                   :value="field.FieldAlias" />
-                                    </el-select>
-                                </div>
-                                <el-button type="text" color="danger" size="small" @click="deleteParamItem(index)">删除</el-button>
-                            </div>
-                            <div v-if="form.ParamItems.length === 0" style="text-align: center; color: #999; padding: 10px;">
-                                请添加：尺寸类型、测试温度、缺口类型（支持中英文）
-                            </div>
-                        </div>
-                    </el-card>
                 </div>
+                <template #footer>
+                  <div style="display: flex; justify-content: center; gap: 20px;">
+                    <el-button @click="subColumnDialogVisible = false">
+                      取消
+                    </el-button>
+                    <el-button
+                      type="primary"
+                      @click="saveSubColumns"
+                    >
+                      保存
+                    </el-button>
+                  </div>
+                </template>
+              </el-dialog>
             </div>
+          </el-card>
+        </div>
 
-            <!-- 左→右水平布局：基础列 → 扩展列 → 尾部/特殊模块 -->
-            <div class="config-main" style="display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px;">
-                <!-- 左侧：基础列（左侧固定列） -->
-                <div class="config-panel" style="width: 28%; min-width: 380px;">
-                    <el-card shadow="hover" style="height: 100%;">
-                        <template #header>
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <h4 style="margin: 0;">基础列（左侧固定列）</h4>
-                                <div>
-                                    <el-button type="primary" size="small" @click="addColumn('base')">+ 新增</el-button>
-                                    <el-button type="warning" size="small" @click="resetColumns('base')" style="margin-left: 8px;">清空</el-button>
-                                </div>
-                            </div>
-                        </template>
-                        <div ref="baseColumnRef" class="column-list" style="border: 1px solid #e6e6e6; padding: 10px; min-height: 350px; max-height: 500px; overflow-y: auto; background: #fff;">
-                            <div v-for="(col, index) in form.BaseColumns" :key="col.id" class="column-item" style="display: flex; align-items: center; padding: 8px; margin-bottom: 8px; background: #f9f9f9; border-radius: 4px;">
-                                <i class="el-icon-menu" style="cursor: move; margin-right: 10px; color: #999;"></i>
-                                <div style="flex: 1; display: flex; gap: 10px; flex-wrap: wrap;">
-                                    <el-input v-model="col.label" placeholder="中文列名" style="width: 150px;" size="small" />
-                                    <el-input v-model="col.enLabel" placeholder="英文列名" style="width: 180px;" size="small" />
-                                    <el-select v-model="col.yunbiaoField"
-                                               placeholder="绑定云表字段"
-                                               style="width: 160px;"
-                                               size="small"
-                                               clearable>
-                                        <el-option v-for="field in yunbiaoFields"
-                                                   :key="field.FieldName"
-                                                   :label="`${field.FieldAlias} (${field.FieldName})`"
-                                                   :value="field.FieldAlias" />
-                                    </el-select>
-                                    <el-select v-model="col.type" placeholder="数据类型" style="width: 120px;" size="small">
-                                        <el-option label="文本" value="text" />
-                                        <el-option label="数字" value="number" />
-                                    </el-select>
-                                </div>
-                                <el-button type="text" color="danger" size="small" @click="deleteColumn(index, 'base')">删除</el-button>
-                            </div>
-                            <div v-if="form.BaseColumns.length === 0" style="text-align: center; color: #999; padding: 15px;">
-                                暂无基础列，点击「新增」添加
-                            </div>
-                        </div>
-                    </el-card>
+        <!-- 右侧：尾部配置 + 特殊模块 -->
+        <div
+          class="config-panel"
+          style="width: 34%; min-width: 400px;"
+        >
+          <el-card
+            shadow="hover"
+            style="height: 100%;"
+          >
+            <template #header>
+              <!-- 新增：底部列组配置 -->
+              <div style="margin-bottom: 15px;">
+                <div style="color: #1890ff; font-weight: 500; margin-bottom: 10px;">
+                  底部列组（列模式，数据行下方渲染）
                 </div>
-
-                <!-- 中间：扩展列（右侧检测列，支持子列） -->
-                <div class="config-panel" style="width: 38%; min-width: 500px;">
-                    <el-card shadow="hover" style="height: 100%;">
-                        <template #header>
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <h4 style="margin: 0;">扩展列（右侧检测列，支持子列）</h4>
-                                <div>
-                                    <el-button type="primary" size="small" @click="addColumn('extend')">+ 新增</el-button>
-                                    <el-button type="warning" size="small" @click="resetColumns('extend')" style="margin-left: 8px;">清空</el-button>
-                                </div>
-                            </div>
-                        </template>
-                        <div ref="extendColumnRef" class="column-list" style="border: 1px solid #e6e6e6; padding: 10px; min-height: 350px; max-height: 500px; overflow-y: auto; background: #fff;">
-                            <div v-for="(col, index) in form.ExtendColumns" :key="col.id" class="column-item" style="display: flex; align-items: center; padding: 8px; margin-bottom: 8px; background: #f9f9f9; border-radius: 4px;">
-                                <i class="el-icon-menu" style="cursor: move; margin-right: 10px; color: #999;"></i>
-                                <div style="flex: 1; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-                                    <el-input v-model="col.label" placeholder="中文列名" style="width: 150px;" size="small" />
-                                    <el-input v-model="col.enLabel" placeholder="英文列名" style="width: 200px;" size="small" />
-                                    <el-select v-model="col.yunbiaoField"
-                                               placeholder="绑定云表字段"
-                                               style="width: 160px;"
-                                               size="small"
-                                               clearable>
-                                        <el-option v-for="field in yunbiaoFields"
-                                                   :key="field.FieldName"
-                                                   :label="`${field.FieldAlias} (${field.FieldName})`"
-                                                   :value="field.FieldAlias" />
-                                    </el-select>
-                                    <el-select v-model="col.type" placeholder="数据类型" style="width: 120px;" size="small">
-                                        <el-option label="文本" value="text" />
-                                        <el-option label="数字" value="number" />
-                                    </el-select>
-
-                                    <!-- 动态列开关 + 切换事件 -->
-                                    <el-switch v-model="col.isDynamic"
-                                               active-text="动态列"
-                                               inactive-text="固定列"
-                                               size="small"
-                                               @change="handleDynamicChange(col)" />
-
-                                    <!-- 仅固定列显示手动子列按钮 -->
-                                    <el-button type="primary"
-                                               size="small"
-                                               @click="toggleSubColumns(col)"
-                                               v-if="!col.isDynamic">
-                                        子列
-                                    </el-button>
-
-                                    <!-- 动态列提示 -->
-                                    <span v-if="col.isDynamic" style="color: #409eff; font-size: 12px;">（自动生成试样子列）</span>
-                                </div>
-                                <el-button type="text" color="danger" size="small" @click="deleteColumn(index, 'extend')">删除</el-button>
-                            </div>
-                            <div v-if="form.ExtendColumns.length === 0" style="text-align: center; color: #999; padding: 15px;">
-                                暂无扩展列，点击「新增」添加
-                            </div>
-
-                            <!-- 子列配置弹窗 -->
-                            <el-dialog v-model="subColumnDialogVisible" width="60%" title="子列配置" :close-on-click-modal="false">
-                                <div style="margin-bottom:10px;">
-                                    <el-button type="primary" size="small" @click="addSubColumn">+ 新增子列</el-button>
-                                </div>
-                                <div v-for="(subCol, subIndex) in currentSubColumns" :key="subCol.id" class="column-item" style="display: flex; align-items: center; padding: 8px; margin-bottom: 8px; background: #f9f9f9; border-radius: 4px;">
-                                    <i class="el-icon-menu" style="cursor: move; margin-right: 10px; color: #999;"></i>
-                                    <div style="flex: 1; display: flex; gap: 10px; flex-wrap: wrap;">
-                                        <el-input v-model="subCol.label" placeholder="中文子列名" style="width: 150px;" size="small" />
-                                        <el-input v-model="subCol.enLabel" placeholder="英文子列名" style="width: 180px;" size="small" />
-                                        <el-select v-model="subCol.yunbiaoField"
-                                                   placeholder="绑定云表字段"
-                                                   style="width: 160px;"
-                                                   size="small"
-                                                   clearable>
-                                            <el-option v-for="field in yunbiaoFields"
-                                                       :key="field.FieldName"
-                                                       :label="`${field.FieldAlias} (${field.FieldName})`"
-                                                       :value="field.FieldAlias" />
-                                        </el-select>
-                                        <el-select v-model="subCol.type" placeholder="数据类型" style="width: 120px;" size="small">
-                                            <el-option label="文本" value="text" />
-                                            <el-option label="数字" value="number" />
-                                        </el-select>
-                                    </div>
-                                    <el-button type="text" color="danger" size="small" @click="deleteSubColumn(subIndex)">删除</el-button>
-                                </div>
-                                <template #footer>
-                                    <div style="display: flex; justify-content: center; gap: 20px;">
-                                        <el-button @click="subColumnDialogVisible = false">取消</el-button>
-                                        <el-button type="primary" @click="saveSubColumns">保存</el-button>
-                                    </div>
-                                </template>
-                            </el-dialog>
-                        </div>
-                    </el-card>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <el-button
+                    type="primary"
+                    size="small"
+                    @click="addColumn('bottom')"
+                  >
+                    + 新增
+                  </el-button>
+                  <el-button
+                    type="warning"
+                    size="small"
+                    @click="resetColumns('bottom')"
+                  >
+                    清空
+                  </el-button>
                 </div>
+                <div
+                  ref="bottomColumnRef"
+                  class="column-list"
+                  style="border: 1px solid #e6e6e6; padding: 10px; min-height: 150px; max-height: 300px; overflow-y: auto; background: #fff;"
+                >
+                    <div v-for="(col, index) in form.BottomColumns"
+                         :key="col.id"
+                         class="column-item"
+                         style="display: flex; align-items: center; padding: 8px; margin-bottom: 8px; background: #f9f9f9; border-radius: 4px;">
+                        <i class="el-icon-menu"
+                           style="cursor: move; margin-right: 10px; color: #999;" />
+                        <div style="flex: 1; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                            <el-input v-model="col.label"
+                                      placeholder="中文列名"
+                                      style="width: 150px;"
+                                      size="small" />
+                            <el-input v-model="col.enLabel"
+                                      placeholder="英文列名"
+                                      style="width: 200px;"
+                                      size="small" />
+                            <el-select v-model="col.yunbiaoField"
+                                       placeholder="绑定云表字段"
+                                       style="width: 160px;"
+                                       size="small"
+                                       clearable>
+                                <el-option v-for="field in yunbiaoFields"
+                                           :key="field.FieldName"
+                                           :label="`${field.FieldAlias} (${field.FieldName})`"
+                                           :value="field.FieldAlias" />
+                            </el-select>
+                            <el-select v-model="col.type"
+                                       placeholder="数据类型"
+                                       style="width: 120px;"
+                                       size="small">
+                                <el-option label="文本"
+                                           value="text" />
+                                <el-option label="数字"
+                                           value="number" />
+                            </el-select>
 
-                <!-- 右侧：尾部配置 + 特殊模块 -->
-                <div class="config-panel" style="width: 34%; min-width: 400px;">
-                    <el-card shadow="hover" style="height: 100%;">
-                        <template #header>
+                            <!-- 固定列子列按钮 -->
+                            <el-button v-if="!col.isDynamic"
+                                       type="primary"
+                                       size="small"
+                                       @click="toggleSubColumns(col)">
+                                子列
+                            </el-button>
 
-                            <!-- 新增：底部列组配置 -->
-                            <div style="margin-bottom: 15px;">
-                                <div style="color: #1890ff; font-weight: 500; margin-bottom: 10px;">底部列组（列模式，数据行下方渲染）</div>
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                    <el-button type="primary" size="small" @click="addColumn('bottom')">+ 新增</el-button>
-                                    <el-button type="warning" size="small" @click="resetColumns('bottom')">清空</el-button>
-                                </div>
-                                <div ref="bottomColumnRef" class="column-list" style="border: 1px solid #e6e6e6; padding: 10px; min-height: 150px; max-height: 300px; overflow-y: auto; background: #fff;">
-                                    <div v-for="(col, index) in form.BottomColumns" :key="col.id" class="column-item" style="display: flex; align-items: center; padding: 8px; margin-bottom: 8px; background: #f9f9f9; border-radius: 4px;">
-                                        <i class="el-icon-menu" style="cursor: move; margin-right: 10px; color: #999;"></i>
-                                        <div style="flex: 1; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-                                            <el-input v-model="col.label" placeholder="中文列名" style="width: 150px;" size="small" />
-                                            <el-input v-model="col.enLabel" placeholder="英文列名" style="width: 200px;" size="small" />
-                                            <el-select v-model="col.yunbiaoField"
-                                                       placeholder="绑定云表字段"
-                                                       style="width: 160px;"
-                                                       size="small"
-                                                       clearable>
-                                                <el-option v-for="field in yunbiaoFields"
-                                                           :key="field.FieldName"
-                                                           :label="`${field.FieldAlias} (${field.FieldName})`"
-                                                           :value="field.FieldAlias" />
-                                            </el-select>
-                                            <el-select v-model="col.type" placeholder="数据类型" style="width: 120px;" size="small">
-                                                <el-option label="文本" value="text" />
-                                                <el-option label="数字" value="number" />
-                                            </el-select>
-
-                                            <!-- 动态列开关（复用扩展列逻辑） -->
-                                            <el-switch v-model="col.isDynamic"
-                                                       active-text="动态列"
-                                                       inactive-text="固定列"
-                                                       size="small"
-                                                       @change="handleDynamicChange(col)" />
-
-                                            <!-- 固定列子列按钮 -->
-                                            <el-button type="primary"
-                                                       size="small"
-                                                       @click="toggleSubColumns(col)"
-                                                       v-if="!col.isDynamic">
-                                                子列
-                                            </el-button>
-
-                                            <span v-if="col.isDynamic" style="color: #409eff; font-size: 12px;">（自动生成试样子列）</span>
-                                        </div>
-                                        <el-button type="text" color="danger" size="small" @click="deleteColumn(index, 'bottom')">删除</el-button>
-                                    </div>
-                                    <div v-if="form.BottomColumns.length === 0" style="text-align: center; color: #999; padding: 15px;">
-                                        暂无底部列组，点击「新增」添加（支持一级列+子列，渲染在数据行下方）
-                                    </div>
-                                </div>
-                                <div style="color: #999; font-size: 12px; margin-top: 8px;">
-                                    💡 配置逻辑与「扩展列」完全一致，支持固定列/动态列、子列配置、拖拽排序<br />
-                                    💡 渲染位置：核心表格数据行下方，尾部行（技术要求/备注）上方
-                                </div>
-                            </div>
-
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <h4 style="margin: 0;">尾部/特殊模块配置</h4>
-                                <div>
-                                    <el-button type="primary" size="small" @click="addColumn('footer')">+ 新增尾部字段</el-button>
-                                    <el-button type="warning" size="small" @click="resetColumns('footer')" style="margin-left: 8px;">清空</el-button>
-                                </div>
-                            </div>
-                        </template>
-                        <div style="margin-bottom: 15px;">
-                            <div style="color: #67c23a; font-weight: 500; margin-bottom: 10px;">尾部字段（自动合并行）</div>
-                            <div ref="footerColumnRef" class="column-list" style="border: 1px solid #e6e6e6; padding: 10px; min-height: 150px; max-height: 200px; overflow-y: auto; background: #fff;">
-                                <div v-for="(col, index) in form.FooterColumns" :key="col.id" class="column-item" style="display: flex; align-items: center; padding: 8px; margin-bottom: 8px; background: #f9f9f9; border-radius: 4px;">
-                                    <i class="el-icon-menu" style="cursor: move; margin-right: 10px; color: #999;"></i>
-                                    <div style="flex: 1; display: flex; gap: 10px; flex-wrap: wrap;">
-                                        <el-input v-model="col.label" placeholder="中文名称" style="width: 150px;" size="small" />
-                                        <el-input v-model="col.enLabel" placeholder="英文名称" style="width: 180px;" size="small" />
-                                        <el-select v-model="col.type" placeholder="数据类型" style="width: 120px;" size="small">
-                                            <el-option label="文本" value="text" />
-                                            <el-option label="数字" value="number" />
-                                        </el-select>
-                                    </div>
-                                    <el-button type="text" color="danger" size="small" @click="deleteColumn(index, 'footer')">删除</el-button>
-                                </div>
-                                <div v-if="form.FooterColumns.length === 0" style="text-align: center; color: #999; padding: 15px;">
-                                    暂无尾部字段，点击「新增字段」添加（自动合并行）
-                                </div>
-                            </div>
+                            <span v-if="col.isDynamic"
+                                  style="color: #409eff; font-size: 12px;">（自动生成试样子列）</span>
                         </div>
-                        <div style="margin-bottom:15px;">
-                            <div style="color: #e6a23c; font-weight: 500; margin-bottom: 10px;">照片配置</div>
-                            <div style="border: 1px solid #e6e6e6; padding: 15px; border-radius: 4px; background: #fff;">
-                                <el-form-item label="启用照片模块" label-width="120px">
-                                    <el-switch v-model="form.PhotoConfig.enabled" />
-                                </el-form-item>
-                                <el-form-item label="模块标题" label-width="120px">
-                                    <el-input v-model="form.PhotoConfig.title" placeholder="如：腐蚀照片" style="width: 80%;" :disabled="!form.PhotoConfig.enabled" size="small" />
-                                </el-form-item>
-                                <div style="color: #999; font-size: 12px; margin-top: 8px; line-height: 1.5;">
-                                    💡 启用后，在报告录入时可自由添加任意数量照片<br />
-                                    💡 每插入一张照片，自动生成对应描述输入框
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 审批列配置 -->
-                        <div>
-                            <div style="color: #409eff; font-weight: 500; margin-bottom: 10px;">审批列配置</div>
-                            <div style="border: 1px solid #e6e6e6; padding: 15px; border-radius: 4px; background: #fff;">
-                                <div style="margin-bottom:10px;">
-                                    <el-button type="primary" size="small" @click="addApprovalItem">+ 新增审批项</el-button>
-                                    <el-button type="warning" size="small" @click="clearApprovalItems" style="margin-left:8px;">清空</el-button>
-                                </div>
-                                <div ref="approvalRef" class="column-list" style="max-height:180px;overflow-y:auto;">
-                                    <div v-for="(item, idx) in form.ApprovalItems" :key="item.id" style="display:flex;align-items:center;padding:6px;background:#f9f9f9;border-radius:4px;margin-bottom:6px;">
-                                        <i class="el-icon-menu" style="margin-right:8px;cursor:move;color:#999;"></i>
-                                        <el-input v-model="item.label" placeholder="如：审核" size="small" style="width:120px;"></el-input>
-                                        <el-input v-model="item.enLabel" placeholder="英文" size="small" style="width:120px;"></el-input>
-                                        <el-button type="text" color="danger" size="small" @click="deleteApprovalItem(idx)">删除</el-button>
-                                    </div>
-                                    <div v-if="form.ApprovalItems.length===0" style="text-align:center;color:#999;padding:10px;">
-                                        暂无审批项
-                                    </div>
-                                </div>
-                                <div style="font-size:12px;color:#999;margin-top:8px;">
-                                    💡 预览时自动平摊宽度，占满整个表格
-                                </div>
-                            </div>
-                        </div>
-                    </el-card>
+                        <el-button type="text"
+                                   color="danger"
+                                   size="small"
+                                   @click="deleteColumn(index, 'bottom')">
+                            删除
+                        </el-button>
+                        <el-button type="text" size="small" :disabled="index === 0" @click="moveUp(form.BottomColumns, index)">↑</el-button>
+                        <el-button type="text" size="small" :disabled="index === form.BottomColumns.length - 1" @click="moveDown(form.BottomColumns, index)">↓</el-button>
+                    </div>
+                  <div
+                    v-if="form.BottomColumns.length === 0"
+                    style="text-align: center; color: #999; padding: 15px;"
+                  >
+                    暂无底部列组，点击「新增」添加（支持一级列+子列，渲染在数据行下方）
+                  </div>
                 </div>
-            </div>
-
-            <template #footer>
-                <div style="width: 100%; display: flex; justify-content: center; gap: 20px; padding: 10px 0;">
-                    <el-button @click="dialogVisible = false">取消</el-button>
-                    <el-button type="primary" @click="saveScheme">保存配置</el-button>
+                <div style="color: #999; font-size: 12px; margin-top: 8px;">
+                   配置逻辑与「扩展列」完全一致，支持固定列/动态列、子列配置、拖拽排序<br>
+                   渲染位置：核心表格数据行下方，尾部行（技术要求/备注）上方
                 </div>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h4 style="margin: 0;">
+                  尾部/特殊模块配置
+                </h4>
+                <div>
+                  <el-button
+                    type="primary"
+                    size="small"
+                    @click="addColumn('footer')"
+                  >
+                    + 新增尾部字段
+                  </el-button>
+                  <el-button
+                    type="warning"
+                    size="small"
+                    style="margin-left: 8px;"
+                    @click="resetColumns('footer')"
+                  >
+                    清空
+                  </el-button>
+                </div>
+              </div>
             </template>
-        </el-dialog>
-
-        <!-- 表格可视化预览弹窗 -->
-        <el-dialog v-model="previewDialogVisible" width="95%" title="表格可视化预览（1:1还原报告样式）" :close-on-click-modal="false" append-to-body>
-            <div style="padding: 20px; background: #fff; border-radius: 8px;">
-                <div style="background: #fff3cd; padding: 8px 12px; font-size: 16px; font-weight: 600; margin-bottom: 10px;">
-                    {{ form.ProjectTitle || '项目标题' }}/{{ form.ProjectEnTitle || 'Project Title' }}
+            <div style="margin-bottom: 15px;">
+              <div style="color: #67c23a; font-weight: 500; margin-bottom: 10px;">
+                尾部字段（自动合并行）
+              </div>
+              <div
+                ref="footerColumnRef"
+                class="column-list"
+                style="border: 1px solid #e6e6e6; padding: 10px; min-height: 150px; max-height: 200px; overflow-y: auto; background: #fff;"
+              >
+                  <div v-for="(col, index) in form.FooterColumns"
+                       :key="col.id"
+                       class="column-item"
+                       style="display: flex; align-items: center; padding: 8px; margin-bottom: 8px; background: #f9f9f9; border-radius: 4px;">
+                      <i class="el-icon-menu"
+                         style="cursor: move; margin-right: 10px; color: #999;" />
+                      <div style="flex: 1; display: flex; gap: 10px; flex-wrap: wrap;">
+                          <el-input v-model="col.label"
+                                    placeholder="中文名称"
+                                    style="width: 150px;"
+                                    size="small" />
+                          <el-input v-model="col.enLabel"
+                                    placeholder="英文名称"
+                                    style="width: 180px;"
+                                    size="small" />
+                          <el-select v-model="col.type"
+                                     placeholder="数据类型"
+                                     style="width: 120px;"
+                                     size="small">
+                              <el-option label="文本"
+                                         value="text" />
+                              <el-option label="数字"
+                                         value="number" />
+                          </el-select>
+                          <el-select v-model="col.yunbiaoField"
+                                     placeholder="绑定云表字段"
+                                     style="width: 200px;"
+                                     size="small"
+                                     clearable
+                                     filterable>
+                              <el-option v-for="field in yunbiaoFields"
+                                         :key="field.FieldName"
+                                         :label="`${field.FieldAlias} (${field.FieldName})`"
+                                         :value="field.FieldAlias" />
+                          </el-select>
+                      </div>
+                      <el-button type="text"
+                                 color="danger"
+                                 size="small"
+                                 @click="deleteColumn(index, 'footer')">
+                          删除
+                      </el-button>
+                      <el-button type="text" size="small" :disabled="index === 0" @click="moveUp(form.FooterColumns, index)">↑</el-button>
+                      <el-button type="text" size="small" :disabled="index === form.FooterColumns.length - 1" @click="moveDown(form.FooterColumns, index)">↓</el-button>
+                  </div>
+                <div
+                  v-if="form.FooterColumns.length === 0"
+                  style="text-align: center; color: #999; padding: 15px;"
+                >
+                  暂无尾部字段，点击「新增字段」添加（自动合并行）
                 </div>
-                <div style="padding: 8px 12px; border-bottom: 1px solid #e6e6e6; margin-bottom: 10px;">
-                    <span style="font-weight: 500;">{{ form.TestReference || '检测依据' }} / {{ form.TestReferenceEn || 'Test Reference' }}</span>
+              </div>
+            </div>
+            <div style="margin-bottom:15px;">
+              <div style="color: #e6a23c; font-weight: 500; margin-bottom: 10px;">
+                照片配置
+              </div>
+              <div style="border: 1px solid #e6e6e6; padding: 15px; border-radius: 4px; background: #fff;">
+                <el-form-item
+                  label="启用照片模块"
+                  label-width="120px"
+                >
+                  <el-switch v-model="form.PhotoConfig.enabled" />
+                </el-form-item>
+                <el-form-item
+                  label="模块标题"
+                  label-width="120px"
+                >
+                  <el-input
+                    v-model="form.PhotoConfig.title"
+                    placeholder="如：腐蚀照片"
+                    style="width: 80%;"
+                    :disabled="!form.PhotoConfig.enabled"
+                    size="small"
+                  />
+                </el-form-item>
+                <div style="color: #999; font-size: 12px; margin-top: 8px; line-height: 1.5;">
+                   启用后，在报告录入时可自由添加任意数量照片<br>
+                   每插入一张照片，自动生成对应描述输入框
                 </div>
+              </div>
+            </div>
+          </el-card>
+        </div>
+      </div>
 
-                <!-- 试样参数栏 -->
-                <div v-if="form.ParamItems && form.ParamItems.length > 0">
-                    <table border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse; text-align: center;">
-                        <tbody>
-                            <tr>
-                                <template v-for="param in form.ParamItems" :key="param.id">
-                                    <td style="background: #d9d9d9; font-weight: 600;">
-                                        <div>{{ param.label }}</div><div style="font-size: 12px; color: #666;">{{ param.enLabel }}</div>
-                                    </td>
-                                    <td style="background: #fff; font-weight: 500;">{{ param.value || '/' }}</td>
-                                </template>
-                            </tr>
-                        </tbody>
-                    </table>
+      <template #footer>
+        <div style="width: 100%; display: flex; justify-content: center; gap: 20px; padding: 10px 0;">
+          <el-button @click="dialogVisible = false">
+            取消
+          </el-button>
+          <el-button
+            type="primary"
+            @click="saveScheme"
+          >
+            保存配置
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
+
+    <!-- 表格可视化预览弹窗 -->
+    <el-dialog
+      v-model="previewDialogVisible"
+      width="95%"
+      title="表格可视化预览（1:1还原报告样式）"
+      :close-on-click-modal="false"
+      append-to-body
+    >
+      <div style="padding: 20px; background: #fff; border-radius: 8px;">
+        <div style="background: #fff3cd; padding: 8px 12px; font-size: 16px; font-weight: 600; margin-bottom: 10px;">
+          {{ form.ProjectTitle || '项目标题' }}/{{ form.ProjectEnTitle || 'Project Title' }}
+        </div>
+        <div style="padding: 8px 12px; border-bottom: 1px solid #e6e6e6; margin-bottom: 10px;">
+          <span style="font-weight: 500;">{{ form.TestReference || '检测依据' }} / {{ form.TestReferenceEn || 'Test Reference' }}</span>
+        </div>
+
+        <!-- 试样参数栏 -->
+        <div v-if="form.ParamItems && form.ParamItems.length > 0">
+          <table
+            border="1"
+            cellpadding="8"
+            cellspacing="0"
+            style="width: 100%; border-collapse: collapse; text-align: center;"
+          >
+            <tbody>
+              <tr>
+                <template
+                  v-for="param in form.ParamItems"
+                  :key="param.id"
+                >
+                  <td style="background: #d9d9d9; font-weight: 600;">
+                    <div>{{ param.label }}</div><div style="font-size: 12px; color: #666;">
+                      {{ param.enLabel }}
+                    </div>
+                  </td>
+                  <td style="background: #fff; font-weight: 500;">
+                    {{ param.value || '/' }}
+                  </td>
+                </template>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 核心表格：完全对齐报告实际渲染 -->
+        <table
+          border="1"
+          cellpadding="8"
+          cellspacing="0"
+          style="width: 100%; border-collapse: collapse; text-align: center; margin-top:10px;"
+        >
+          <thead>
+            <tr>
+              <!-- 基础列：只有需要第二行表头时才 rowspan=2 -->
+              <th
+                v-for="col in form.BaseColumns"
+                :key="col.id"
+                :rowspan="hasSubColumnHeader ? 2 : 1"
+                style="background: #d9d9d9;"
+              >
+                <div>{{ col.label }}</div>
+                <div style="font-size:12px;color:#666;">
+                  {{ col.enLabel }}
                 </div>
+              </th>
+              <template
+                v-for="col in form.ExtendColumns"
+                :key="col.id"
+              >
+                <!-- 动态行：colspan=8，占满两行（如果存在第二行表头）-->
+                <th
+                  v-if="col.isDynamicRow"
+                  :colspan="8"
+                  :rowspan="hasSubColumnHeader ? 2 : 1"
+                  style="background:#e6e6e6;"
+                >
+                  <div>{{ col.label }}</div>
+                  <div style="font-size:12px;color:#666;">
+                    {{ col.enLabel }}
+                  </div>
+                </th>
+                <!-- 普通子列：第一行母列 -->
+                <th
+                  v-else-if="col.subColumns?.length > 0"
+                  :colspan="col.subColumns.length"
+                  style="background:#e6e6e6;"
+                >
+                  <div>{{ col.label }}</div>
+                  <div style="font-size:12px;color:#666;">
+                    {{ col.enLabel }}
+                  </div>
+                </th>
+                <!-- 单列：rowspan=2 -->
+                <th
+                  v-else
+                  :rowspan="hasSubColumnHeader ? 2 : 1"
+                  style="background:#e6e6e6;"
+                >
+                  <div>{{ col.label }}</div>
+                  <div style="font-size:12px;color:#666;">
+                    {{ col.enLabel }}
+                  </div>
+                </th>
+              </template>
+            </tr>
+            <!-- 第二行：只有普通子列才渲染 -->
+            <tr v-if="hasSubColumnHeader">
+              <template
+                v-for="col in form.ExtendColumns"
+                :key="col.id"
+              >
+                <template v-if="!col.isDynamicRow && col.subColumns?.length > 0">
+                  <th
+                    v-for="subCol in col.subColumns"
+                    :key="subCol.id"
+                    style="background:#f0f0f0;"
+                  >
+                    <div>{{ subCol.label }}</div>
+                    <div style="font-size:12px;color:#666;">
+                      {{ subCol.enLabel }}
+                    </div>
+                  </th>
+                </template>
+              </template>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- 模拟数据行 -->
+            <tr>
+              <td
+                v-for="col in form.BaseColumns"
+                :key="col.id"
+              >
+                /
+              </td>
+              <template
+                v-for="col in form.ExtendColumns"
+                :key="col.id"
+              >
+                <!-- 动态行：生成 4 组「编号. + 值」 -->
+                <template v-if="col.isDynamicRow">
+                  <template
+                    v-for="n in 4"
+                    :key="n"
+                  >
+                    <td>{{ n }}.</td>
+                    <td>/</td>
+                  </template>
+                </template>
+                <!-- 普通子列 -->
+                <template v-else-if="col.subColumns?.length > 0">
+                  <td
+                    v-for="subCol in col.subColumns"
+                    :key="subCol.id"
+                  >
+                    /
+                  </td>
+                </template>
+                <td v-else>
+                  /
+                </td>
+              </template>
+            </tr>
 
-                <!-- 核心表格：完全对齐报告实际渲染 -->
-                <table border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse; text-align: center; margin-top:10px;">
+            <!-- 新增：转换行（开启时显示） -->
+            <tr v-if="form.EnableConversion">
+              <td
+                v-for="col in form.BaseColumns"
+                :key="col.id"
+                style="color: #999; font-size: 12px;"
+              >
+                {{ (col.label || '').includes('检测位置') ? '转换值(HRC) Conversion value' : '' }}
+              </td>
+              <template
+                v-for="col in form.ExtendColumns"
+                :key="col.id"
+              >
+                <template v-if="col.isDynamicRow">
+                  <template
+                    v-for="n in 4"
+                    :key="n"
+                  >
+                    <td style="color:#999;font-size:12px;">
+                      {{ n }}.
+                    </td>
+                    <td style="background:#fafafa;" />
+                  </template>
+                </template>
+                <template v-else-if="col.subColumns?.length > 0">
+                  <td
+                    v-for="subCol in col.subColumns"
+                    :key="subCol.id"
+                    style="background:#fafafa;"
+                  />
+                </template>
+                <td
+                  v-else
+                  style="background:#fafafa;"
+                />
+              </template>
+            </tr>
+
+            <!-- 底部列组（BottomColumns） - 占据整行，内部嵌套表格 -->
+            <template v-if="form.BottomColumns.length > 0">
+              <tr>
+                <td
+                  :colspan="totalTableCols"
+                  style="padding: 0; border: none;"
+                >
+                  <table
+                    width="100%"
+                    cellpadding="8"
+                    cellspacing="0"
+                    style="border-collapse: collapse; text-align: center; table-layout: fixed;"
+                  >
                     <thead>
-                        <!-- 第一行：基础列 + 扩展列（含子列合并） -->
-                        <tr>
-                            <th v-for="col in form.BaseColumns" :key="col.id" rowspan="2" style="background: #d9d9d9;">
-                                <div>{{ col.label }}</div>
-                                <div style="font-size:12px;color:#666;">{{ col.enLabel }}</div>
-                            </th>
-                            <template v-for="col in form.ExtendColumns" :key="col.id">
-                                <th v-if="col.subColumns?.length > 0" :colspan="col.subColumns.length" style="background:#e6e6e6;">
-                                    <div>{{ col.label }}</div>
-                                    <div style="font-size:12px;color:#666;">{{ col.enLabel }}</div>
-                                </th>
-                                <th v-else rowspan="2" style="background:#e6e6e6;">
-                                    <div>{{ col.label }}</div>
-                                    <div style="font-size:12px;color:#666;">{{ col.enLabel }}</div>
-                                </th>
-                            </template>
-                        </tr>
-                        <!-- 第二行：扩展列的子列头 -->
-                        <tr>
-                            <template v-for="col in form.ExtendColumns" :key="col.id">
-                                <th v-for="subCol in col.subColumns || []" :key="subCol.id" style="background:#f0f0f0;">
-                                    <div>{{ subCol.label }}</div>
-                                    <div style="font-size:12px;color:#666;">{{ subCol.enLabel }}</div>
-                                </th>
-                            </template>
-                        </tr>
+                      <tr style="background: #e6e6e6;">
+                        <th
+                          v-for="col in form.BottomColumns"
+                          :key="col.id"
+                          :colspan="col.subColumns?.length || 1"
+                          style="border: 1px solid #ccc; font-weight: 600;"
+                          :style="{ width: (100 / form.BottomColumns.length) + '%' }"
+                        >
+                          <div>{{ col.label }}</div>
+                          <div style="font-size: 12px; color: #666;">
+                            {{ col.enLabel }}
+                          </div>
+                        </th>
+                      </tr>
                     </thead>
                     <tbody>
-                        <!-- 模拟数据行 -->
-                        <tr>
-                            <td v-for="col in form.BaseColumns" :key="col.id">/</td>
-                            <template v-for="col in form.ExtendColumns" :key="col.id">
-                                <template v-if="col.subColumns?.length > 0">
-                                    <td v-for="subCol in col.subColumns" :key="subCol.id">/</td>
-                                </template>
-                                <td v-else>/</td>
-                            </template>
-                        </tr>
-
-                        <!-- 底部列组（BottomColumns） - 占据整行，内部嵌套表格 -->
-                        <template v-if="form.BottomColumns.length > 0">
-                            <tr>
-                                <td :colspan="totalTableCols" style="padding: 0; border: none;">
-                                    <table width="100%" cellpadding="8" cellspacing="0" style="border-collapse: collapse; text-align: center; table-layout: fixed;">
-                                        <thead>
-                                            <tr style="background: #e6e6e6;">
-                                                <th v-for="col in form.BottomColumns" :key="col.id" :colspan="col.subColumns?.length || 1" style="border: 1px solid #ccc; font-weight: 600;" :style="{ width: (100 / form.BottomColumns.length) + '%' }">
-                                                    <div>{{ col.label }}</div>
-                                                    <div style="font-size: 12px; color: #666;">{{ col.enLabel }}</div>
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr style="background: #f0f0f0;">
-                                                <template v-for="col in form.BottomColumns" :key="col.id">
-                                                    <th v-for="(subCol, idx) in (col.subColumns?.length ? col.subColumns : [{ label: col.label, enLabel: col.enLabel }])" :key="idx" style="border: 1px solid #ccc;">
-                                                        <div>{{ subCol.label }}</div>
-                                                        <div style="font-size: 12px; color: #666;">{{ subCol.enLabel }}</div>
-                                                    </th>
-                                                </template>
-                                            </tr>
-                                            <tr style="background: #fff;">
-                                                <template v-for="col in form.BottomColumns" :key="col.id">
-                                                    <td v-for="(subCol, idx) in (col.subColumns?.length ? col.subColumns : [{ label: '', enLabel: '' }])" :key="idx" style="border: 1px solid #ccc;">
-                                                        {{ col.requirement || '/' }}
-                                                    </td>
-                                                </template>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </td>
-                            </tr>
+                      <tr style="background: #f0f0f0;">
+                        <template
+                          v-for="col in form.BottomColumns"
+                          :key="col.id"
+                        >
+                          <th
+                            v-for="(subCol, idx) in (col.subColumns?.length ? col.subColumns : [{ label: col.label, enLabel: col.enLabel }])"
+                            :key="idx"
+                            style="border: 1px solid #ccc;"
+                          >
+                            <div>{{ subCol.label }}</div>
+                            <div style="font-size: 12px; color: #666;">
+                              {{ subCol.enLabel }}
+                            </div>
+                          </th>
                         </template>
-
-                        <!-- 尾部字段（FooterColumns）：特殊处理“技术要求”行，自动匹配扩展列子列数量 -->
-                        <template v-if="form.FooterColumns.length > 0">
-                            <template v-for="footer in form.FooterColumns" :key="footer.id">
-                                <!-- 如果尾部字段的标签包含“技术要求”，则按照报告实际逻辑渲染 -->
-                                <tr v-if="footer.label.includes('技术要求')">
-                                    <!-- 左标签：占基础列数 -->
-                                    <td :colspan="form.BaseColumns.length" style="background: #d9d9d9; font-weight: 600; padding: 12px; text-align: left;">
-                                        <div>{{ footer.label }}</div>
-                                        <div style="font-size: 12px; color: #666;">{{ footer.enLabel }}</div>
-                                    </td>
-                                    <!-- 右侧：遍历扩展列的每个子列，生成对应数量的输入框 -->
-                                    <template v-for="col in form.ExtendColumns" :key="col.id">
-                                        <template v-if="col.subColumns?.length > 0">
-                                            <td v-for="subCol in col.subColumns" :key="subCol.id" style="background: #fff; padding: 12px; text-align: left;">
-                                                {{ footer.value || '/' }}
-                                            </td>
-                                        </template>
-                                        <td v-else style="background: #fff; padding: 12px; text-align: left;">
-                                            {{ footer.value || '/' }}
-                                        </td>
-                                    </template>
-                                </tr>
-                                <!-- 其他尾部字段（如结论、备注）按原合并逻辑 -->
-                                <tr v-else>
-                                    <td :colspan="form.BaseColumns.length" style="background: #d9d9d9; font-weight: 600; padding: 12px; text-align: left;">
-                                        <div>{{ footer.label }}</div>
-                                        <div style="font-size: 12px; color: #666;">{{ footer.enLabel }}</div>
-                                    </td>
-                                    <td :colspan="extendTotalCols" style="background: #fff; padding: 12px; text-align: left;">
-                                        {{ footer.value || '/' }}
-                                    </td>
-                                </tr>
-                            </template>
+                      </tr>
+                      <tr style="background: #fff;">
+                        <template
+                          v-for="col in form.BottomColumns"
+                          :key="col.id"
+                        >
+                          <td
+                            v-for="(subCol, idx) in (col.subColumns?.length ? col.subColumns : [{ label: '', enLabel: '' }])"
+                            :key="idx"
+                            style="border: 1px solid #ccc;"
+                          >
+                            {{ col.requirement || '/' }}
+                          </td>
                         </template>
+                      </tr>
                     </tbody>
-                </table>
-
-                <!-- 照片+审批模块 -->
-                <div v-if="form.PhotoConfig.enabled" style="margin-top:20px;">
-                    <div style="font-weight:600;margin-bottom:10px;">{{ form.PhotoConfig.title }}</div>
-                    <div style="border:1px solid #e6e6e6;padding:20px;text-align:center;color:#999;">照片区域</div>
-                </div>
-
-                <!-- 审批模块：纯预览展示，默认显示/，无输入框，和表格样式统一 -->
-                <div v-if="form.ApprovalItems.length>0" style="margin-top:20px;">
-                    <table border="1" cellpadding="8" cellspacing="0" style="width:100%;border-collapse:collapse;">
-                        <tbody>
-                            <tr>
-                                <template v-for="item in form.ApprovalItems" :key="item.id">
-                                    <!-- 审批名称列 -->
-                                    <td style="text-align:center; font-weight:500;">
-                                        {{ item.label }}
-                                        <div style="font-size:12px;color:#666;">{{ item.enLabel }}</div>
-                                    </td>
-                                    <!-- 审批值列：默认显示/，纯展示，无输入框 -->
-                                    <td style="text-align:center; width: 150px;">
-                                        {{ item.value || '/' }}
-                                    </td>
-                                </template>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <template #footer>
-                <el-button @click="previewDialogVisible=false">关闭</el-button>
+                  </table>
+                </td>
+              </tr>
             </template>
-        </el-dialog>
-    </div>
+
+            <!-- 尾部字段（FooterColumns）：特殊处理“技术要求”行，自动匹配扩展列子列数量 -->
+            <template v-if="form.FooterColumns.length > 0">
+              <template
+                v-for="footer in form.FooterColumns"
+                :key="footer.id"
+              >
+                <!-- 如果尾部字段的标签包含“技术要求”，则按照报告实际逻辑渲染 -->
+                <tr v-if="footer.label.includes('技术要求')">
+                  <!-- 左侧标签 -->
+                  <td
+                    :colspan="form.BaseColumns.length"
+                    style="background: #d9d9d9; font-weight: 600; padding: 12px; text-align: left;"
+                  >
+                    <div>{{ footer.label }}</div>
+                    <div style="font-size: 12px; color: #666;">
+                      {{ footer.enLabel }}
+                    </div>
+                  </td>
+
+                  <!-- 情况1：有动态行（维氏）→ 合并所有扩展列 -->
+                  <td
+                    v-if="hasDynamicRow"
+                    :colspan="extendTotalCols"
+                    style="background: #fff; padding: 12px; text-align: left;"
+                  >
+                    {{ footer.value || '/' }}
+                  </td>
+
+                  <!-- 情况2：无动态行（冲击/拉伸等）→ 按子列展开 -->
+                  <template v-else>
+                    <template
+                      v-for="col in form.ExtendColumns"
+                      :key="col.id"
+                    >
+                      <template v-if="col.subColumns?.length > 0">
+                        <td
+                          v-for="subCol in col.subColumns"
+                          :key="subCol.id"
+                          style="background: #fff; padding: 12px; text-align: left;"
+                        >
+                          {{ footer.value || '/' }}
+                        </td>
+                      </template>
+                      <td
+                        v-else
+                        style="background: #fff; padding: 12px; text-align: left;"
+                      >
+                        {{ footer.value || '/' }}
+                      </td>
+                    </template>
+                  </template>
+                </tr>
+                <!-- 其他尾部字段（如结论、备注）按原合并逻辑 -->
+                <tr v-else>
+                  <td
+                    :colspan="form.BaseColumns.length"
+                    style="background: #d9d9d9; font-weight: 600; padding: 12px; text-align: left;"
+                  >
+                    <div>{{ footer.label }}</div>
+                    <div style="font-size: 12px; color: #666;">
+                      {{ footer.enLabel }}
+                    </div>
+                  </td>
+                  <td
+                    :colspan="extendTotalCols"
+                    style="background: #fff; padding: 12px; text-align: left;"
+                  >
+                    {{ footer.value || '/' }}
+                  </td>
+                </tr>
+              </template>
+            </template>
+          </tbody>
+        </table>
+
+        <!-- 照片+审批模块 -->
+        <div
+          v-if="form.PhotoConfig.enabled"
+          style="margin-top:20px;"
+        >
+          <div style="font-weight:600;margin-bottom:10px;">
+            {{ form.PhotoConfig.title }}
+          </div>
+          <div style="border:1px solid #e6e6e6;padding:20px;text-align:center;color:#999;">
+            照片区域
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="previewDialogVisible=false">
+          关闭
+        </el-button>
+      </template>
+    </el-dialog>
+  </div>
 </template>
 
 <script setup>
@@ -626,11 +1239,10 @@
     const baseColumnRef = ref(null)
     const extendColumnRef = ref(null)
     const footerColumnRef = ref(null)
-    const approvalRef = ref(null)
     const paramRef = ref(null)
     const bottomColumnRef = ref(null)
 
-    let sortableBase, sortableExtend, sortableBottom, sortableFooter, sortableApproval, sortableParam
+    let sortableBase, sortableExtend, sortableBottom, sortableFooter, sortableParam
 
     // 模拟试样（仅配置页预览使用，不入库、不影响报告）
     const mockSamples = ref(['1#试样', '2#试样', '3#试样'])
@@ -640,6 +1252,7 @@
     const form = reactive({
         SchemeId: 0, SchemeName: '', techSpec_code: null,
         ProjectTitle: '', ProjectEnTitle: '', TestReference: '', TestReferenceEn: '',
+        EnableConversion: false, 
         GroupHeaders: [], BaseColumns: [], ExtendColumns: [],
         BottomColumns: [], // 新增：底部列组（列模式，渲染在数据行下方）
         FooterColumns: [],
@@ -656,11 +1269,19 @@
 
     // 扩展列总列数（包含子列）
     const extendTotalCols = computed(() => {
-        return form.ExtendColumns.reduce((sum, col) => sum + (col.subColumns?.length || 1), 0)
+        return form.ExtendColumns.reduce((sum, col) => {
+            if (col.isDynamicRow) return sum + 8    // 动态行固定 8 列
+            return sum + (col.subColumns?.length || 1)
+        }, 0)
     })
     // 表格总列数 = 基础列 + 扩展列总列数（底部列占满整行的关键）
     const totalTableCols = computed(() => {
         return form.BaseColumns.length + extendTotalCols.value
+    })
+
+    // 是否存在动态行（维氏硬度专用）
+    const hasDynamicRow = computed(() => {
+        return form.ExtendColumns.some(col => col.isDynamicRow)
     })
 
     // 主表固定关键字段
@@ -763,28 +1384,51 @@
             // 新增bottom列组拖拽
             if (bottomColumnRef.value) { if (sortableBottom) sortableBottom.destroy(); sortableBottom = Sortable.create(bottomColumnRef.value, opt) }
             if (footerColumnRef.value) { if (sortableFooter) sortableFooter.destroy(); sortableFooter = Sortable.create(footerColumnRef.value, opt) }
-            if (approvalRef.value) { if (sortableApproval) sortableApproval.destroy(); sortableApproval = Sortable.create(approvalRef.value, opt) }
             if (paramRef.value) { if (sortableParam) sortableParam.destroy(); sortableParam = Sortable.create(paramRef.value, opt) }
         })
     }
 
     // ========== 动态列开关核心方法 ==========
-    const handleDynamicChange = (col) => {
+    const handleDynamicChange = (col, isRestore = false) => {
         if (col.isDynamic) {
-            // 开启动态列：自动生成试样子列
-            col.subColumns = mockSamples.value.map((sample, index) => ({
-                id: Date.now() + index,
-                label: sample,
-                enLabel: mockSampleEn.value[index] || sample,
-                type: 'text',
-                yunbiaoField: ''
-            }))
+            col.isDynamicRow = false
+            // ⭐ 只有"新增 mock"或"回显但子列为空"时才生成
+            if (!isRestore || !col.subColumns || col.subColumns.length === 0) {
+                col.subColumns = mockSamples.value.map((sample, index) => ({
+                    id: Date.now() + index,
+                    label: sample,
+                    enLabel: mockSampleEn.value[index] || sample,
+                    type: 'text',
+                    yunbiaoField: ''
+                }))
+            }
         } else {
-            // 关闭动态列：清空子列
-            col.subColumns = []
+            if (!isRestore) {
+                col.subColumns = []
+            }
         }
         nextTick(initAllSortable)
     }
+
+    // 动态行开关（仅扩展列使用）
+    const handleDynamicRowChange = (col) => {
+        if (col.isDynamicRow) {
+            col.isDynamic = false
+            col.subColumns = []
+            // 只在"开启动态行 && 未开转换"时提示
+            if (!form.EnableConversion) {
+                ElMessage.info('已切换为动态行模式，如需显示转换值请在顶部开启"显示转换行"')
+            }
+        }
+        nextTick(initAllSortable)
+    }
+
+
+
+    // 是否有需要"第二行表头"的普通子列
+    const hasSubColumnHeader = computed(() => {
+        return form.ExtendColumns.some(col => !col.isDynamicRow && col.subColumns?.length > 0)
+    })
 
     // ========== 列操作 ==========
     const addColumn = (type) => {
@@ -803,6 +1447,7 @@
             subColumns: [],
             yunbiaoField: '',
             isDynamic: false,
+            isDynamicRow: false, 
             dynamicType: (type === 'extend' || type === 'bottom') ? 'sample' : '' // bottom支持动态列
         })
         nextTick(initAllSortable)
@@ -815,6 +1460,24 @@
         else if (type === 'bottom') list = form.BottomColumns; // 新增
         else list = form.FooterColumns;
         list.splice(idx, 1)
+    }
+
+    // 通用上移
+    const moveUp = (list, index) => {
+        if (index > 0) {
+            const temp = list[index - 1]
+            list[index - 1] = list[index]
+            list[index] = temp
+        }
+    }
+
+    // 通用下移
+    const moveDown = (list, index) => {
+        if (index < list.length - 1) {
+            const temp = list[index + 1]
+            list[index + 1] = list[index]
+            list[index] = temp
+        }
     }
 
     const resetColumns = type => {
@@ -839,25 +1502,15 @@
     }
     const deleteSubColumn = idx => currentSubColumns.value.splice(idx, 1)
 
-    // ========== 审批 ==========
-    const addApprovalItem = () => { form.ApprovalItems.push({ id: Date.now(), label: '审批', enLabel: '' }); nextTick(initAllSortable) }
-    const deleteApprovalItem = idx => form.ApprovalItems.splice(idx, 1)
-    const clearApprovalItems = () => { form.ApprovalItems = [] }
-
     // ========== 弹窗 ==========
     const showAddDialog = () => {
         isEdit.value = false
 
-        const baseId = Date.now()
 
         Object.assign(form, {
             SchemeId: 0, SchemeName: '', techSpec_code: null, ProjectTitle: '', ProjectEnTitle: '', TestReference: '', TestReferenceEn: '',
-            GroupHeaders: [], BaseColumns: [], ExtendColumns: [], FooterColumns: [], PhotoConfig: { enabled: false, title: '照片' },
-            ApprovalItems: [
-                { id: baseId, label: '编       制:', enLabel: 'Compiled by' },
-                { id: baseId + 1, label: '审       核:', enLabel: 'Reviewed by' },
-                { id: baseId + 2, label: '批       准:', enLabel: 'Approved by' }
-            ], ConfigVersion: 1, IsActive: false, ParamItems: []
+            EnableConversion: false, GroupHeaders: [], BaseColumns: [], ExtendColumns: [], BottomColumns: [], FooterColumns: [], PhotoConfig: { enabled: false, title: '照片' },
+            ConfigVersion: 1, IsActive: false, ParamItems: []
         })
         if (selectedProjectCode.value) loadYunbiaoFields(selectedProjectName.value)
         dialogVisible.value = true
@@ -871,15 +1524,21 @@
             SchemeId: row.SchemeId, SchemeName: row.SchemeName, techSpec_code: row.TechSpecCode || null,
             ProjectTitle: cfg.ProjectTitle || '', ProjectEnTitle: cfg.ProjectEnTitle || '', TestReference: cfg.TestReference || '',
             TestReferenceEn: cfg.TestReferenceEn || '', GroupHeaders: cfg.GroupHeaders || [], BaseColumns: cfg.BaseColumns || [],
+            EnableConversion: cfg.EnableConversion === true,
             ExtendColumns: cfg.ExtendColumns || [],
             BottomColumns: cfg.BottomColumns || [], // 新增
             FooterColumns: cfg.FooterColumns || [], PhotoConfig: cfg.PhotoConfig || { enabled: false, title: '照片' },
-            ApprovalItems: cfg.ApprovalItems || [], ConfigVersion: row.ConfigVersion || 1, IsActive: row.IsActive || false, ParamItems: cfg.ParamItems || []
+            ConfigVersion: row.ConfigVersion || 1, IsActive: row.IsActive || false, ParamItems: cfg.ParamItems || []
+        })
+
+        // 老模板补 isDynamicRow 默认值
+        form.ExtendColumns.forEach(col => {
+            if (col.isDynamicRow === undefined) col.isDynamicRow = false
         })
 
         // 动态列回显（新增bottom列组）
-        form.ExtendColumns.forEach(col => { if (col.isDynamic) handleDynamicChange(col) })
-        form.BottomColumns.forEach(col => { if (col.isDynamic) handleDynamicChange(col) })
+        form.ExtendColumns.forEach(col => { if (col.isDynamic) handleDynamicChange(col, true) })
+        form.BottomColumns.forEach(col => { if (col.isDynamic) handleDynamicChange(col, true) })
 
         if (selectedProjectCode.value) loadYunbiaoFields(selectedProjectName.value)
         dialogVisible.value = true

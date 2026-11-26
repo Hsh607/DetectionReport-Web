@@ -281,3 +281,4 @@ export const groupImpactData = (rawData) => {
 
     return result;
 };
+

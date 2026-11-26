@@ -1,7 +1,6 @@
 ﻿import { reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import axios from 'axios'
-import { autoGenerateMap } from '../utils/reportMapper'
 
 export function useForm() {
 
@@ -12,11 +11,12 @@ export function useForm() {
         ClientAddress: '',
         ReceiptDate: '',
         TestCycle: '',
-        ReportDate: ''
+        ReportDate: '',
+        IsCnas: false,
     })
 
     const fixedForm = reactive({
-        sampleDesc: '',
+        sampleDesc: '客户提供测试件1套。A set of test pieces provided by customer.',
         inspectionOrderNo: '',
         orderNo: '',
         materialSpec: '',
@@ -24,12 +24,15 @@ export function useForm() {
         sampleMaterial: '',
         sampleSpec: '',
         additionalInfo: '',
+        sampleInfo: '',
         testEnv: [{
             item: '', reqTemp: '', testTemp: '', reqHumidity: '', testHumidity: '',
             projectCode: '', techSpecCode: '', techSpecName: ''
         }],
         testEquipment: [{ no: '', name: '', model: '', eqNo: '', validUntil: '' }]
     })
+
+    // ========== 原有方法 ==========
 
     function addTestEnvRow() {
         fixedForm.testEnv.push({
@@ -38,12 +41,16 @@ export function useForm() {
         })
     }
 
-    function deleteTestEnvRow(index) {
+    function deleteTestEnvRow(index, testProjectsRef) {
         if (fixedForm.testEnv.length <= 1) {
             ElMessage.warning('至少保留1行！')
             return
         }
         fixedForm.testEnv.splice(index, 1)
+
+        if (testProjectsRef && testProjectsRef.value && testProjectsRef.value.length > index) {
+            testProjectsRef.value.splice(index, 1)
+        }
     }
 
     function addTestEquipmentRow() {
@@ -58,14 +65,14 @@ export function useForm() {
         fixedForm.testEquipment.splice(index, 1)
     }
 
-    // 接收 marginData 参数 + 保存项目间距 + 兼容旧数据
+    // ========== 提交报告（保存签名数组） ==========
+
     async function submitReport(testProjects, isEdit, id, marginData) {
         const validProjects = testProjects.filter(item => item.schemeConfig)
 
-        // 添加 index，保存每个项目的间距
         const submitProjects = validProjects.map((p, index) => {
             const data = JSON.parse(JSON.stringify(p))
-            // 确保 paramValues 存在
+
             if (!data.reportData.paramValues) {
                 data.reportData.paramValues = {}
             }
@@ -73,11 +80,12 @@ export function useForm() {
                 TestReference: data.reportData.testReference || '',
                 TestReferenceEn: data.schemeConfig?.TestReferenceEn || ''
             }
-            // ✅ 修复第1处：提交后端用大驼峰
             data.reportData.BottomRequirement = data.reportData.bottomRequirement || {}
+            //  marginData > 现有值 > 5
+            data.projectMargin = marginData?.projectMargins?.[index]
+                ?? p.ProjectMargin
+                ?? 5
 
-            // 保存当前检测项目的间距（兼容无数据情况）
-            data.projectMargin = marginData?.projectMargins?.[index] ?? 30
             return data
         })
 
@@ -85,40 +93,46 @@ export function useForm() {
             HomeInfo: homeForm,
             FixedInfo: {
                 ...fixedForm,
-                // 兼容 marginData 不存在的情况，不报错
                 MarginSettings: marginData ? marginData.fixedMargins : undefined
             },
             TestProjects: submitProjects
         }
-
-        const impact = testProjects.find(p => p.projectCode === 'JCXMHJ-06')
-        console.log('冲击试验当前 paramValues:', impact?.reportData?.paramValues)
 
         try {
             const res = isEdit
                 ? await axios.put(`/api/DetectionReport/${id}`, submitData)
                 : await axios.post('/api/DetectionReport', submitData)
             if (res.data.Success) {
-                ElMessage.success('保存成功')
-                return true
+                // 新建成功后，把后端返回的 ReportId 存到 homeForm
+                if (!isEdit && res.data.ReportId) {
+                    homeForm.ReportId = res.data.ReportId
+                }
+
+                //返回值改成对象
+                return {
+                    success: true,
+                    reportId: isEdit ? id : res.data.ReportId
+                }
             } else {
-                ElMessage.error(res.data.Message)
-                return false
+                return { success: false, reportId: null }
             }
         } catch (err) {
             ElMessage.error('保存失败：' + (err.response?.data?.Message || ''))
             console.error(err)
-            return false
+            return { success: false, reportId: null } 
         }
     }
 
+    // ========== 加载报告（回显签名数组） ==========
+
     async function loadReportDetail(id, testProjectsRef, fixedFormRef, homeFormRef, projectDataCache) {
-        console.log('🔍 loadReportDetail 接收到的 projectDataCache:', projectDataCache);
+        console.log(' loadReportDetail 接收到的 projectDataCache:', projectDataCache);
 
         try {
             const res = await axios.get(`/api/DetectionReport/${id}`)
             if (res.data.Success) {
                 const data = res.data.Data
+
                 if (data.HomeInfo) Object.assign(homeFormRef, data.HomeInfo)
 
                 const fixed = data.FixedInfo || {}
@@ -143,7 +157,6 @@ export function useForm() {
                 testProjectsRef.value = []
                 const projects = data.TestProjects || []
 
-                // ✅ 改为 for 循环，i 作为索引
                 for (let i = 0; i < projects.length; i++) {
                     const item = projects[i]
                     const schemeConfig = typeof item.SchemeConfig === 'string'
@@ -151,39 +164,20 @@ export function useForm() {
                         : item.SchemeConfig
                     const rd = item.ReportData || {}
 
-                    // 🔥 新增：转换 TableData 为字段名格式
-                    const { tableMap } = autoGenerateMap(schemeConfig)
-                    const idToField = {}
-                    Object.entries(tableMap).forEach(([field, id]) => {
-                        idToField[String(id)] = field
-                    })
-
-                    let convertedData = rd.TableData || []
-                    if (convertedData.length > 0) {
-                        const firstKeys = Object.keys(convertedData[0])
-                        const isIdFormat = firstKeys.length > 0 && /^\d+$/.test(firstKeys[0])
-                        if (isIdFormat) {
-                            convertedData = convertedData.map(row => {
-                                const newRow = {}
-                                Object.entries(row).forEach(([id, value]) => {
-                                    const field = idToField[String(id)]
-                                    if (field) newRow[field] = value
-                                })
-                                return newRow
-                            })
-                            console.log(`🔄 缓存 [${i}] 已转为字段名格式:`, convertedData)
-                        }
-                    }
-
-                    // 存入缓存（字段名格式）
-                    if (convertedData.length > 0) {
-                        projectDataCache.value[i] = convertedData
-                    }
-
                     if (item.ProjectCode === 'JCXMHJ-06') {
                         console.log('冲击试验原始 ParamValues:', rd.ParamValues)
                         console.log('冲击试验模板 ParamItems:', schemeConfig.ParamItems)
                     }
+
+                    //  每个项目独立管理签名
+                    const rawItems = rd.SignatureItems || [];
+                    const mappedItems = rawItems.map(item => ({
+                        id: item.Id || `sig_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+                        role: item.Role || item.role || '',
+                        enLabel: item.EnLabel || item.enLabel || '',
+                        name: item.Name || item.name || '',
+                        signatureUrl: item.SignatureUrl || item.signatureUrl || ''
+                    }));
 
                     testProjectsRef.value.push({
                         projectCode: item.ProjectCode || '',
@@ -191,20 +185,57 @@ export function useForm() {
                         techSpecName: item.TechSpecName || '',
                         schemeConfig: schemeConfig,
                         showPhotoArea: schemeConfig.PhotoConfig?.enabled ?? false,
-                        ProjectMargin: item.ProjectMargin ?? 30,
-
+                        ProjectMargin: item.ProjectMargin ?? 5,
                         reportData: {
                             Header: rd.Header || { TestReference: '', TestReferenceEn: '' },
                             testReference: rd.TestReference || '',
                             tableData: rd.TableData || [],
                             techRequirement: rd.TechRequirement || {},
                             bottomRequirement: rd.BottomRequirement || {},
-                            conclusion: rd.Conclusion,
+                            conclusion: rd.Conclusion || '',
                             note: rd.Note || '',
                             reviewer: rd.Reviewer || '',
                             approval: rd.Approval || {},
                             paramValues: rd.ParamValues || {},
-                            photoRows: rd.PhotoRows || [{ LeftUrl: '', LeftDesc: '', RightUrl: '', RightDesc: '' }]
+                            photoRows: (rd.PhotoRows || [{ LeftUrl: '', LeftDesc: '', RightUrl: '', RightDesc: '' }])
+                                .map(r => ({
+                                    LeftUrl: r.LeftUrl || '',
+                                    LeftDesc: r.LeftDesc || '',
+                                    RightUrl: r.RightUrl || '',
+                                    RightDesc: r.RightDesc || '',
+                                    marginTop: r.MarginTop ?? r.marginTop ?? 2.65    // 兼容两种大小写
+                                })),
+                            impactGroups: rd.ImpactGroups || [],
+                            isImpactGrouped: rd.ImpactGroups && rd.ImpactGroups.length > 0,
+                            ferriteGroups: rd.FerriteGroups || [],
+                            isFerriteGrouped: rd.FerriteGroups && rd.FerriteGroups.length > 0,
+                            tensileGroups: rd.TensileGroups || [],
+                            isTensileGrouped: rd.TensileGroups && rd.TensileGroups.length > 0,
+                            vickersGroups: rd.VickersGroups || [],
+                            isVickersGrouped: rd.VickersGroups && rd.VickersGroups.length > 0,
+                            corrosionGroups: rd.CorrosionGroups || [],
+                            isCorrosionGrouped: rd.CorrosionGroups && rd.CorrosionGroups.length > 0,
+                            inclusionGroups: rd.InclusionGroups || [],
+                            isInclusionGrouped: rd.InclusionGroups && rd.InclusionGroups.length > 0,
+                            chemGroups: rd.ChemGroups || [],
+                            isChemGrouped: rd.ChemGroups && rd.ChemGroups.length > 0,
+                            metallographicGroups: rd.MetallographicGroups || [],
+                            isMetallographicGrouped: rd.MetallographicGroups && rd.MetallographicGroups.length > 0,
+                            signatureItems: mappedItems,
+                            //  新增：映射 SignatureBlocks（统一转小写）
+                            signatureBlocks: (rd.SignatureBlocks || []).map(b => ({
+                                Category: b.Category || b.category || '',
+                                Reviewer: b.Reviewer || b.reviewer || '',
+                                ReviewStatus: b.ReviewStatus || b.review_status || 'pending',
+                                ReviewTime: b.ReviewTime || b.review_time || null,
+                                ReviewOpinion: b.ReviewOpinion || b.review_opinion || null,
+                                ReviewSignatureUrl: b.ReviewSignatureUrl || b.review_signature_url || null,
+                                Approver: b.Approver || b.approver || '',
+                                ApprovalStatus: b.ApprovalStatus || b.approval_status || 'pending',
+                                ApprovalTime: b.ApprovalTime || b.approval_time || null,
+                                ApprovalOpinion: b.ApprovalOpinion || b.approval_opinion || null,
+                                ApprovalSignatureUrl: b.ApprovalSignatureUrl || b.approval_signature_url || null,
+                            }))
                         }
                     })
                 }

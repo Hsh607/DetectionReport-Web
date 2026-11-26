@@ -1,23 +1,25 @@
-<template>
-    <div style="padding: 20px; background: #fff; height: 100%;">
-        <h2 style="text-align: center; margin-bottom: 20px;">¼ì²â±¨¸æÒ³Ãæ£¨ºóÐøÍêÉÆ£©</h2>
-        <el-card>
-            <el-alert title="ÌáÊ¾"
-                      type="info"
-                      description="¸ÃÒ³Ãæ½«»ùÓÚ¶¯Ì¬ÁÐÅäÖÃµÄÄ£°å£¬¼ÓÔØ¼ì²âÊý¾Ý²¢Éú³É±¨¸æ"
-                      show-icon />
-        </el-card>
-    </div>
+ï»¿<template>
+  <div style="padding: 20px; background: #fff; height: 100%;">
+    <h2 style="text-align: center; margin-bottom: 20px;">
+      æ£€æµ‹æŠ¥å‘Šé¡µé¢ï¼ˆæ¨¡æ¿åç§°ï¼‰
+    </h2>
+    <el-card>
+      <el-alert
+        title="æç¤º"
+        type="info"
+        description="æœ¬é¡µé¢å°†ç”¨äºŽåŠ¨æ€åŠ è½½çš„æ¨¡æ¿ï¼Œå…·ä½“å†…å®¹æ•°æ®ä¸å¯ç¼–è¾‘"
+        show-icon
+      />
+    </el-card>
+  </div>
 </template>
 
-<!-- ÆÕÍ¨ script£º¶¨Òå×é¼þÃû£¨¼æÈÝËùÓÐ Vue 3 °æ±¾£© -->
 <script>
     export default {
-        name: 'DetectionReport' // ¸ÄÎª¶à´Ê¸ñÊ½£¬½â¾ö ESLint ±¨´í
+        name: 'DetectionReport'
     }
 </script>
 
-<!-- script setup£ºÐ´ÄãµÄÒµÎñÂß¼­£¨Èç¹ûÓÐµÄ»°£© -->
 <script setup>
-    // ÕâÀï·ÅºóÐøµÄÂß¼­´úÂë
+    
 </script>

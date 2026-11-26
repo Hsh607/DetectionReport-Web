@@ -1,250 +1,358 @@
 ﻿<template>
-    <div>
-        <h3 style="font-size: 16px; font-weight: bold; margin-bottom: 10px;">4、检测设备/Test Equipment</h3>
-        <el-button type="primary"
-                   size="small"
-                   style="margin-bottom: 10px"
-                   @click="emit('addRow')"
-                   :disabled="isDetail">+ 新增行</el-button>
-        <!-- 批量选择按钮 -->
-        <el-button type="success"
-                   size="small"
-                   style="margin-bottom: 10px; margin-left: 8px"
-                   @click="openBatchSelectDialog"
-                   :disabled="isDetail">批量选择设备</el-button>
+  <div>
+    <h3 style="font-size: 16px; font-weight: bold; margin-bottom: 10px;">
+      4、检测设备/Test Equipment
+    </h3>
+    <el-button
+      type="primary"
+      size="small"
+      style="margin-bottom: 10px"
+      :disabled="isDetail"
+      @click="emit('addRow')"
+    >
+      + 新增行
+    </el-button>
+    <!-- 批量选择按钮 -->
+    <el-button
+      type="success"
+      size="small"
+      style="margin-bottom: 10px; margin-left: 8px"
+      :disabled="isDetail"
+      @click="openBatchSelectDialog"
+    >
+      批量选择设备
+    </el-button>
 
-        <!-- 主表格 -->
-        <el-table :data="testEquipment" border stripe style="width: 100%">
-            <el-table-column width="80" align="center">
-                <template #header>
-                    <div style="text-align: center; line-height: 1.4;">
-                        序号<br>
-                        <span style="font-size: 12px; color: #666;">No.</span>
-                    </div>
-                </template>
-                <template #default="scope">
-                    <span style="color: #606266; font-weight: 500;">
-                        {{ scope.$index + 1 }}
-                    </span>
-                </template>
-            </el-table-column>
+    <!-- 主表格 -->
+    <el-table
+      :data="testEquipment"
+      border
+      stripe
+      style="width: 100%"
+    >
+      <el-table-column
+        width="80"
+        align="center"
+      >
+        <template #header>
+          <div style="text-align: center; line-height: 1.4;">
+            序号<br>
+            <span style="font-size: 12px; color: #666;">No.</span>
+          </div>
+        </template>
+        <template #default="scope">
+          <span style="color: #606266; font-weight: 500;">
+            {{ scope.$index + 1 }}
+          </span>
+        </template>
+      </el-table-column>
 
-            <el-table-column min-width="220">
-                <template #header>
-                    <div style="text-align: center; line-height: 1.4;">
-                        设备名称<br>
-                        <span style="font-size: 12px; color: #666;">Name of Test Equipment</span>
-                    </div>
-                </template>
-                <template #default="scope">
-                    <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-                        <div style="line-height: 1.4;">
-                            <div>{{ splitEquipmentName(scope.row.name).zh || '未选择设备' }}</div>
-                            <div style="font-size: 12px; color: #666;">{{ splitEquipmentName(scope.row.name).en }}</div>
-                        </div>
-                        <el-button type="text" size="small" @click="openSelectDialog(scope.$index)" :disabled="isDetail" style="margin-left: 8px; flex-shrink: 0;">
-                            <el-icon><Search /></el-icon>
-                        </el-button>
-                    </div>
-                </template>
-            </el-table-column>
+      <el-table-column min-width="220">
+        <template #header>
+          <div style="text-align: center; line-height: 1.4;">
+            设备名称<br>
+            <span style="font-size: 12px; color: #666;">Name of Test Equipment</span>
+          </div>
+        </template>
+        <template #default="scope">
+          <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+            <div style="line-height: 1.4;">
+              <div>{{ splitEquipmentName(scope.row.name).zh || '未选择设备' }}</div>
+              <div style="font-size: 12px; color: #666;">
+                {{ splitEquipmentName(scope.row.name).en }}
+              </div>
+            </div>
+            <el-button
+              type="text"
+              size="small"
+              :disabled="isDetail"
+              style="margin-left: 8px; flex-shrink: 0;"
+              @click="openSelectDialog(scope.$index)"
+            >
+              <el-icon><Search /></el-icon>
+            </el-button>
+          </div>
+        </template>
+      </el-table-column>
 
-            <el-table-column prop="model" min-width="120">
-                <template #header>
-                    <div style="text-align: center; line-height: 1.4;">
-                        型号<br>
-                        <span style="font-size: 12px; color: #666;">Model</span>
-                    </div>
-                </template>
-                <template #default="scope">
-                    <el-input v-model="scope.row.model" readonly size="small" />
-                </template>
-            </el-table-column>
+      <el-table-column
+        prop="model"
+        min-width="120"
+      >
+        <template #header>
+          <div style="text-align: center; line-height: 1.4;">
+            型号<br>
+            <span style="font-size: 12px; color: #666;">Model</span>
+          </div>
+        </template>
+        <template #default="scope">
+          <el-input
+            v-model="scope.row.model"
+            readonly
+            size="small"
+          />
+        </template>
+      </el-table-column>
 
-            <el-table-column prop="eqNo" min-width="150">
-                <template #header>
-                    <div style="text-align: center; line-height: 1.4;">
-                        设备编号<br>
-                        <span style="font-size: 12px; color: #666;">Equipment No.</span>
-                    </div>
-                </template>
-                <template #default="scope">
-                    <el-input v-model="scope.row.eqNo" readonly size="small" />
-                </template>
-            </el-table-column>
+      <el-table-column
+        prop="eqNo"
+        min-width="150"
+      >
+        <template #header>
+          <div style="text-align: center; line-height: 1.4;">
+            设备编号<br>
+            <span style="font-size: 12px; color: #666;">Equipment No.</span>
+          </div>
+        </template>
+        <template #default="scope">
+          <el-input
+            v-model="scope.row.eqNo"
+            readonly
+            size="small"
+          />
+        </template>
+      </el-table-column>
 
-            <el-table-column prop="validUntil" min-width="180">
-                <template #header>
-                    <div style="text-align: center; line-height: 1.4;">
-                        校准有效期至<br>
-                        <span style="font-size: 12px; color: #666;">Calibration Validity Period</span>
-                    </div>
-                </template>
-                <template #default="scope">
-                    <el-date-picker v-model="scope.row.validUntil"
-                                    type="date"
-                                    size="small"
-                                    style="width: 100%"
-                                    :disabled="isDetail"
-                                    readonly />
-                </template>
-            </el-table-column>
+      <el-table-column
+        prop="validUntil"
+        min-width="180"
+      >
+        <template #header>
+          <div style="text-align: center; line-height: 1.4;">
+            校准有效期至<br>
+            <span style="font-size: 12px; color: #666;">Calibration Validity Period</span>
+          </div>
+        </template>
+        <template #default="scope">
+          <el-date-picker
+            v-model="scope.row.validUntil"
+            type="date"
+            size="small"
+            style="width: 100%"
+            :disabled="isDetail"
+            readonly
+          />
+        </template>
+      </el-table-column>
 
-            <el-table-column label="操作" width="80" fixed="right">
-                <template #default="scope">
-                    <el-button type="link"
-                               color="danger"
-                               size="small"
-                               @click="emit('deleteRow', scope.$index)"
-                               :disabled="testEquipment.length <= 1 || isDetail">删除</el-button>
-                </template>
-            </el-table-column>
-        </el-table>
+      <el-table-column
+        label="操作"
+        width="80"
+        fixed="right"
+      >
+        <template #default="scope">
+          <el-button
+            type="link"
+            color="danger"
+            size="small"
+            :disabled="testEquipment.length <= 1 || isDetail"
+            @click="emit('deleteRow', scope.$index)"
+          >
+            删除
+          </el-button>
+        </template>
+      </el-table-column>
+    </el-table>
 
-        <!-- 单选设备弹窗（修复：补全prop属性） -->
-        <el-dialog v-model="dialogVisible"
-                   title="选择检测设备"
-                   width="80%"
-                   top="10vh"
-                   @close="resetSelect">
-            <el-input v-model="searchKeyword"
-                      placeholder="搜索设备名称/型号/编号"
-                      prefix-icon="Search"
-                      style="margin-bottom: 10px;"
-                      clearable />
+    <!-- 单选设备弹窗（修复：补全prop属性） -->
+    <el-dialog
+      v-model="dialogVisible"
+      title="选择检测设备"
+      width="80%"
+      top="10vh"
+      @close="resetSelect"
+    >
+      <el-input
+        v-model="searchKeyword"
+        placeholder="搜索设备名称/型号/编号"
+        prefix-icon="Search"
+        style="margin-bottom: 10px;"
+        clearable
+      />
 
-            <el-table :data="filteredEquipmentList"
-                      border
-                      stripe
-                      ref="tableRef"
-                      @row-click="handleSelectEquipment"
-                      height="400"
-                      :header-cell-style="{ background: '#f5f7fa', color: '#606266', fontWeight: 'bold' }"
-                      :cell-style="{ textAlign: 'center' }">
-                <!-- 设备名称（带prop+换行） -->
-                <el-table-column prop="name" min-width="200" align="center">
-                    <template #header>
-                        <div style="line-height: 1.4;">
-                            设备名称<br>
-                            <span style="font-size: 12px;">Name of Test Equipment</span>
-                        </div>
-                    </template>
-                    <template #default="scope">
-                        <div style="line-height: 1.4; text-align: center;">
-                            <div>{{ splitEquipmentName(scope.row.name).zh }}</div>
-                            <div style="font-size: 12px; color: #666;">{{ splitEquipmentName(scope.row.name).en }}</div>
-                        </div>
-                    </template>
-                </el-table-column>
-                <!-- 型号（补回prop="model"） -->
-                <el-table-column prop="model" min-width="150" align="center">
-                    <template #header>
-                        <div style="line-height: 1.4;">
-                            型号<br>
-                            <span style="font-size: 12px;">Model</span>
-                        </div>
-                    </template>
-                </el-table-column>
-                <!-- 设备编号（补回prop="eqNo"） -->
-                <el-table-column prop="eqNo" min-width="150" align="center">
-                    <template #header>
-                        <div style="line-height: 1.4;">
-                            设备编号<br>
-                            <span style="font-size: 12px;">Equipment No.</span>
-                        </div>
-                    </template>
-                </el-table-column>
-                <!-- 校准有效期至（补回prop="validUntil"） -->
-                <el-table-column prop="validUntil" min-width="180" align="center">
-                    <template #header>
-                        <div style="line-height: 1.4;">
-                            校准有效期至<br>
-                            <span style="font-size: 12px;">Calibration Validity Period</span>
-                        </div>
-                    </template>
-                </el-table-column>
-            </el-table>
+      <el-table
+        ref="tableRef"
+        :data="filteredEquipmentList"
+        border
+        stripe
+        height="400"
+        :header-cell-style="{ background: '#f5f7fa', color: '#606266', fontWeight: 'bold' }"
+        :cell-style="{ textAlign: 'center' }"
+        @row-click="handleSelectEquipment"
+      >
+        <!-- 设备名称（带prop+换行） -->
+        <el-table-column
+          prop="name"
+          min-width="200"
+          align="center"
+        >
+          <template #header>
+            <div style="line-height: 1.4;">
+              设备名称<br>
+              <span style="font-size: 12px;">Name of Test Equipment</span>
+            </div>
+          </template>
+          <template #default="scope">
+            <div style="line-height: 1.4; text-align: center;">
+              <div>{{ splitEquipmentName(scope.row.name).zh }}</div>
+              <div style="font-size: 12px; color: #666;">
+                {{ splitEquipmentName(scope.row.name).en }}
+              </div>
+            </div>
+          </template>
+        </el-table-column>
+        <!-- 型号（补回prop="model"） -->
+        <el-table-column
+          prop="model"
+          min-width="150"
+          align="center"
+        >
+          <template #header>
+            <div style="line-height: 1.4;">
+              型号<br>
+              <span style="font-size: 12px;">Model</span>
+            </div>
+          </template>
+        </el-table-column>
+        <!-- 设备编号（补回prop="eqNo"） -->
+        <el-table-column
+          prop="eqNo"
+          min-width="150"
+          align="center"
+        >
+          <template #header>
+            <div style="line-height: 1.4;">
+              设备编号<br>
+              <span style="font-size: 12px;">Equipment No.</span>
+            </div>
+          </template>
+        </el-table-column>
+        <!-- 校准有效期至（补回prop="validUntil"） -->
+        <el-table-column
+          prop="validUntil"
+          min-width="180"
+          align="center"
+        >
+          <template #header>
+            <div style="line-height: 1.4;">
+              校准有效期至<br>
+              <span style="font-size: 12px;">Calibration Validity Period</span>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
 
-            <template #footer>
-                <span class="dialog-footer">
-                    <el-button @click="dialogVisible = false">取消</el-button>
-                </span>
-            </template>
-        </el-dialog>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="dialogVisible = false">取消</el-button>
+        </span>
+      </template>
+    </el-dialog>
 
-        <!-- 批量选择设备弹窗（修复：补全prop属性） -->
-        <el-dialog v-model="batchDialogVisible"
-                   title="批量选择检测设备"
-                   width="80%"
-                   top="10vh"
-                   @close="resetBatchSelect">
-            <el-input v-model="batchSearchKeyword"
-                      placeholder="搜索设备名称/型号/编号"
-                      prefix-icon="Search"
-                      style="margin-bottom: 10px;"
-                      clearable />
+    <!-- 批量选择设备弹窗（修复：补全prop属性） -->
+    <el-dialog
+      v-model="batchDialogVisible"
+      title="批量选择检测设备"
+      width="80%"
+      top="10vh"
+      @close="resetBatchSelect"
+    >
+      <el-input
+        v-model="batchSearchKeyword"
+        placeholder="搜索设备名称/型号/编号"
+        prefix-icon="Search"
+        style="margin-bottom: 10px;"
+        clearable
+      />
 
-            <el-table :data="batchFilteredEquipmentList"
-                      border
-                      stripe
-                      ref="batchTableRef"
-                      height="400"
-                      @selection-change="handleBatchSelection"
-                      :header-cell-style="{ background: '#f5f7fa', color: '#606266', fontWeight: 'bold' }"
-                      :cell-style="{ textAlign: 'center' }">
-                <el-table-column type="selection" width="55" align="center" />
-                <!-- 设备名称（带prop+换行） -->
-                <el-table-column prop="name" min-width="200" align="center">
-                    <template #header>
-                        <div style="line-height: 1.4;">
-                            设备名称<br>
-                            <span style="font-size: 12px;">Name of Test Equipment</span>
-                        </div>
-                    </template>
-                    <template #default="scope">
-                        <div style="line-height: 1.4; text-align: center;">
-                            <div>{{ splitEquipmentName(scope.row.name).zh }}</div>
-                            <div style="font-size: 12px; color: #666;">{{ splitEquipmentName(scope.row.name).en }}</div>
-                        </div>
-                    </template>
-                </el-table-column>
-                <!-- 型号（补回prop="model"） -->
-                <el-table-column prop="model" min-width="150" align="center">
-                    <template #header>
-                        <div style="line-height: 1.4;">
-                            型号<br>
-                            <span style="font-size: 12px;">Model</span>
-                        </div>
-                    </template>
-                </el-table-column>
-                <!-- 设备编号（补回prop="eqNo"） -->
-                <el-table-column prop="eqNo" min-width="150" align="center">
-                    <template #header>
-                        <div style="line-height: 1.4;">
-                            设备编号<br>
-                            <span style="font-size: 12px;">Equipment No.</span>
-                        </div>
-                    </template>
-                </el-table-column>
-                <!-- 校准有效期至（补回prop="validUntil"） -->
-                <el-table-column prop="validUntil" min-width="180" align="center">
-                    <template #header>
-                        <div style="line-height: 1.4;">
-                            校准有效期至<br>
-                            <span style="font-size: 12px;">Calibration Validity Period</span>
-                        </div>
-                    </template>
-                </el-table-column>
-            </el-table>
+      <el-table
+        ref="batchTableRef"
+        :data="batchFilteredEquipmentList"
+        border
+        stripe
+        height="400"
+        :header-cell-style="{ background: '#f5f7fa', color: '#606266', fontWeight: 'bold' }"
+        :cell-style="{ textAlign: 'center' }"
+        @selection-change="handleBatchSelection"
+      >
+        <el-table-column
+          type="selection"
+          width="55"
+          align="center"
+        />
+        <!-- 设备名称（带prop+换行） -->
+        <el-table-column
+          prop="name"
+          min-width="200"
+          align="center"
+        >
+          <template #header>
+            <div style="line-height: 1.4;">
+              设备名称<br>
+              <span style="font-size: 12px;">Name of Test Equipment</span>
+            </div>
+          </template>
+          <template #default="scope">
+            <div style="line-height: 1.4; text-align: center;">
+              <div>{{ splitEquipmentName(scope.row.name).zh }}</div>
+              <div style="font-size: 12px; color: #666;">
+                {{ splitEquipmentName(scope.row.name).en }}
+              </div>
+            </div>
+          </template>
+        </el-table-column>
+        <!-- 型号（补回prop="model"） -->
+        <el-table-column
+          prop="model"
+          min-width="150"
+          align="center"
+        >
+          <template #header>
+            <div style="line-height: 1.4;">
+              型号<br>
+              <span style="font-size: 12px;">Model</span>
+            </div>
+          </template>
+        </el-table-column>
+        <!-- 设备编号（补回prop="eqNo"） -->
+        <el-table-column
+          prop="eqNo"
+          min-width="150"
+          align="center"
+        >
+          <template #header>
+            <div style="line-height: 1.4;">
+              设备编号<br>
+              <span style="font-size: 12px;">Equipment No.</span>
+            </div>
+          </template>
+        </el-table-column>
+        <!-- 校准有效期至（补回prop="validUntil"） -->
+        <el-table-column
+          prop="validUntil"
+          min-width="180"
+          align="center"
+        >
+          <template #header>
+            <div style="line-height: 1.4;">
+              校准有效期至<br>
+              <span style="font-size: 12px;">Calibration Validity Period</span>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
 
-            <template #footer>
-                <span class="dialog-footer">
-                    <el-button @click="batchDialogVisible = false">取消</el-button>
-                    <el-button type="primary" @click="confirmBatchSelect">确认添加选中设备</el-button>
-                </span>
-            </template>
-        </el-dialog>
-    </div>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="batchDialogVisible = false">取消</el-button>
+          <el-button
+            type="primary"
+            @click="confirmBatchSelect"
+          >确认添加选中设备</el-button>
+        </span>
+      </template>
+    </el-dialog>
+  </div>
 </template>
 
 <script setup>

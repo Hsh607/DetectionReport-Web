@@ -20,6 +20,12 @@ module.exports = defineConfig({
 
     // 中文编码不乱码
     chainWebpack: config => {
+        // 修改标题
+        config.plugin('html').tap(args => {
+            args[0].title = '诺码实验室检测报告系统'
+            return args
+        })
+
         config.module
             .rule('vue')
             .use('vue-loader')

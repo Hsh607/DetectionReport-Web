@@ -1,117 +1,291 @@
 ﻿<template>
-    <div class="report-container" style="padding: 20px; max-width: 1600px; margin: 0 auto;">
-        <!-- 顶部固定：标题居中 + 报告编号 -->
-        <div class="top-fixed-header">
-            <div class="top-row-1">
-                <div class="placeholder-box"></div>
-                <h2 class="top-title">
-                    {{ isDetail ? '报告详情' : isEdit ? '编辑检测报告' : '新增检测报告' }}
-                </h2>
-                <div class="report-no-box" style="display: flex; flex-direction: column; align-items: flex-end;">
-                    <!-- 第一行：报告编号（必填） -->
-                    <div style="display: flex; align-items: center; margin-bottom: 6px; width: 100%; justify-content: flex-end;">
-                        <span style="width: 130px; text-align: right; margin-right: 8px;">报告编号 ：</span>
+  <div
+    class="report-container"
+    style="padding: 20px; max-width: 1600px; margin: 0 auto;"
+  >
+    <!-- 顶部固定：标题居中 + 报告编号 -->
+    <div class="top-fixed-header">
+      <div class="top-row-1">
+        <div class="placeholder-box" />
+        <h2 class="top-title">
+            {{ pageTitle }}
+            <el-tag v-if="savedAt"
+                    type="success"
+                    size="small"
+                    effect="dark"
+                    style="margin-left: 12px; vertical-align: middle;">
+                ✓ 已保存 {{ savedAt }}
+            </el-tag>
+        </h2>
 
-                        <el-input v-model="homeForm.ReportNo"
-                                  placeholder="请输入报告编号"
-                                  style="width: 220px;"
-                                  clearable
-                                  :disabled="isDetail || isEdit" />
-                        <span style="color: red; margin-right: 2px;">*</span>
+        <div
+          class="report-no-box"
+          style="display: flex; flex-direction: column; align-items: flex-end;"
+        >
+          <!-- 第一行：报告编号（必填） -->
+          <div style="display: flex; align-items: center; margin-bottom: 6px; width: 100%; justify-content: flex-end;">
+            <span style="width: 130px; text-align: right; margin-right: 8px;">报告编号 ：</span>
 
-                    </div>
-                    <!-- 第二行：厂区代码（必填） -->
-                    <div style="display: flex; align-items: center; width: 100%; justify-content: flex-end;">
-                        <span style="width: 130px; text-align: right; margin-right: 8px;">厂区代码：</span>
-                        <el-select v-model="homeForm.FactoryCode"
-                                   placeholder="请选择厂区"
-                                   style="width: 220px;"
-                                   clearable
-                                   :disabled="isDetail || isEdit">
-                            <el-option label="SZNM" value="SZNM" />
-                            <el-option label="JANM" value="JANM" />
-                            <el-option label="XCNM" value="XCNM" />
-                        </el-select>
-                        <span style="color: red; margin-right: 2px;">*</span>
-
-                    </div>
-                </div>
-            </div>
-
-            <!-- 页签固定 -->
-            <div class="top-row-2">
-                <el-tabs v-model="activeTab" type="card" class="fixed-tabs">
-                    <el-tab-pane label="报告首页" name="home" />
-                    <el-tab-pane label="报告内容" name="content" />
-                </el-tabs>
-            </div>
+            <el-input
+              v-model="homeForm.ReportNo"
+              placeholder="请输入报告编号"
+              style="width: 220px;"
+              clearable
+              :disabled="isDetail || isEdit"
+            />
+            <span style="color: red; margin-right: 2px;">*</span>
+          </div>
+          <!-- 第二行：厂区代码（必填） -->
+          <div style="display: flex; align-items: center; width: 100%; justify-content: flex-end;">
+            <span style="width: 130px; text-align: right; margin-right: 8px;">厂区代码：</span>
+            <el-select
+              v-model="homeForm.FactoryCode"
+              placeholder="请选择厂区"
+              style="width: 220px;"
+              clearable
+              :disabled="isDetail || isEdit"
+            >
+              <el-option
+                label="SZNM"
+                value="SZNM"
+              />
+              <el-option
+                label="JANM"
+                value="JANM"
+              />
+              <el-option
+                label="XCNM"
+                value="XCNM"
+              />
+            </el-select>
+            <span style="color: red; margin-right: 2px;">*</span>
+          </div>
         </div>
+      </div>
 
-        <!-- 内容区域 -->
-        <div class="tab-content-wrapper">
-            <HomeTab v-if="activeTab === 'home'" :home-form="homeForm" :is-detail="isDetail" />
-            <ContentTab v-if="activeTab === 'content'"
-                        ref="reportRef"
-                        v-model:fixed-form="fixedForm"
-                        :test-projects="testProjects"
-                        :is-detail="isDetail"
-                        :env-list="envList"
-                        :tech-spec-list="techSpecList"
-                        @open-inspection-dialog="openInspectionDialog"
-                        @add-test-env-row="addTestEnvRow"
-                        @delete-test-env-row="deleteTestEnvRow"
-                        @add-test-equipment-row="addTestEquipmentRow"
-                        @delete-test-equipment-row="deleteTestEquipmentRow"
-                        @add-table-row="addTableRow"
-                        @delete-table-row="deleteTableRow"
-                        @delete-impact-row="deleteImpactRow" 
-                        @delete-ferrite-row="deleteFerriteRow"        
-                        @delete-ferrite-group="deleteFerriteGroup" 
-                        @add-photo-row="addPhotoRow"
-                        @remove-photo-row="removePhotoRow"
-                        @pick-photo="pickPhoto"
-                        @project-code-change="handleProjectCodeChange"
-                        @tech-spec-change="handleTechSpecChange"
-                        @equipment-select="handleEquipmentSelect" />
-        </div>
-
-        <!-- 底部固定按钮 -->
-        <div class="action-buttons">
-            <el-switch v-model="isCNASReport"
-                       active-text="CNAS报告"
-                       inactive-text="普通报告" />
-
-            <!-- PDF预览 - 信息蓝（标准预览色） -->
-            <el-button type="info" size="large" @click="openPdfPreview" :loading="previewLoading">PDF预览</el-button>
-
-            <!-- 返回列表 - 灰色（标准返回色） -->
-            <el-button size="large" @click="back">返回列表</el-button>
-
-            <!-- 保存报告 - 主题蓝（标准提交色） -->
-            <el-button type="primary" size="large" @click="submitReport" :disabled="isDetail || loading">保存报告</el-button>
-
-            <!-- 注释导出功能 -->
-            <!-- <el-button type="warning" size="large" @click="exportPdfDownload" :loading="exportLoading">导出PDF</el-button> -->
-            <!-- <el-button type="success" size="large" @click="exportWord" :loading="exportLoading">导出Word报告</el-button> -->
-        </div>
-
-        <InspectionDialog ref="inspectionDialogRef" @confirm="selectInspection" />
-
-        <el-dialog v-model="previewVisible"
-                   title="PDF 预览"
-                   width="90vw"
-                   height="85vh"
-                   style="height:85vh;display:flex;flex-direction:column;">
-            <iframe ref="pdfIframe"
-                    style="width:100%;height:100%;border:none;flex:1;"
-                    frameborder="0"
-                    scrolling="auto"></iframe>
-        </el-dialog>
+      <!-- 页签固定 -->
+      <div class="top-row-2">
+        <el-tabs
+          v-model="activeTab"
+          type="card"
+          class="fixed-tabs"
+        >
+          <el-tab-pane
+            label="报告首页"
+            name="home"
+          />
+          <el-tab-pane
+            label="报告内容"
+            name="content"
+          />
+        </el-tabs>
+      </div>
     </div>
+
+    <!-- 内容区域 -->
+    <div class="tab-content-wrapper">
+      <HomeTab
+        v-if="activeTab === 'home'"
+        :home-form="homeForm"
+        :is-detail="isDetail"
+      />
+      <ContentTab
+        v-show="activeTab === 'content'"
+        ref="reportRef"
+        v-model:fixed-form="fixedForm"
+        :test-projects="testProjects"
+        :is-detail="isDetail"
+        :report-id="id"
+        :report-status="reportStatus"
+        :is-audit-mode="isAuditMode"
+        :env-list="envList"
+        :tech-spec-list="techSpecList"
+        @open-inspection-dialog="openInspectionDialog"
+        @add-test-env-row="addTestEnvRow"
+        @delete-test-env-row="deleteTestEnvRow"
+        @add-test-equipment-row="addTestEquipmentRow"
+        @delete-test-equipment-row="deleteTestEquipmentRow"
+        @add-table-row="addTableRow"
+        @delete-table-row="deleteTableRow"
+        @delete-impact-row="deleteImpactRow" 
+        @delete-ferrite-row="deleteFerriteRow"        
+        @delete-ferrite-group="deleteFerriteGroup" 
+        @add-tensile-row="addTensileRow"
+        @delete-tensile-row="deleteTensileRow"
+        @delete-tensile-group="deleteTensileGroup"
+        @clone-tensile-group="cloneTensileGroup" 
+        @copy-tensile-table-as-group="copyTensileTableAsGroup"
+        @add-vickers-row="addVickersRow"
+        @delete-vickers-row="deleteVickersRow"
+        @delete-vickers-group="deleteVickersGroup"
+        @copy-corrosion-table-as-group="copyCorrosionTableAsGroup"
+        @clone-corrosion-group="cloneCorrosionGroup"
+        @delete-corrosion-group="deleteCorrosionGroup"
+        @add-corrosion-row="addCorrosionRow"
+        @delete-corrosion-row="deleteCorrosionRow"
+        @copy-inclusion-table-as-group="copyInclusionTableAsGroup"
+        @clone-inclusion-group="cloneInclusionGroup"
+        @delete-inclusion-group="deleteInclusionGroup"
+        @add-inclusion-row="addInclusionRow"
+        @delete-inclusion-row="deleteInclusionRow"
+        @copy-chem-table-as-group="copyChemTableAsGroup"
+        @clone-chem-group="cloneChemGroup"
+        @delete-chem-group="deleteChemGroup"
+        @add-chem-row="addChemRow"
+        @delete-chem-row="deleteChemRow"
+        @copy-metallographic-table-as-group="copyMetallographicTableAsGroup"
+        @clone-metallographic-group="cloneMetallographicGroup"
+        @delete-metallographic-group="deleteMetallographicGroup"
+        @add-metallographic-row="addMetallographicRow"
+        @delete-metallographic-row="deleteMetallographicRow"
+        @add-photo-row="addPhotoRow"
+        @remove-photo-row="removePhotoRow"
+        @pick-photo="pickPhoto"
+        @project-code-change="handleProjectCodeChange"
+        @tech-spec-change="handleTechSpecChange"
+        @equipment-select="handleEquipmentSelect"
+        @refresh-report="refreshReport" 
+      />
+    </div>
+
+    <!-- 底部固定按钮 -->
+    <div class="action-buttons">
+      <el-switch
+        v-model="isCNASReport"
+        active-text="CNAS报告"
+        inactive-text="普通报告"
+      />
+
+      <!-- PDF预览 - 信息蓝（标准预览色） -->
+      <el-button
+        type="info"
+        size="large"
+        :loading="previewLoading"
+        @click="openPdfPreview"
+      >
+        PDF预览
+      </el-button>
+
+      <!-- 返回列表 - 灰色（标准返回色） -->
+      <el-button
+        size="large"
+        @click="back"
+      >
+        返回列表
+      </el-button>
+
+      <!-- 保存报告 - 审核/批准模式下隐藏 -->
+      <el-button v-if="!isAuditMode"
+                 type="primary"
+                 size="large"
+                 :disabled="isDetail || loading"
+                 @click="submitReport">
+          {{ savedAt ? '已保存' : '保存报告' }}
+      </el-button>
+
+      <!-- 提交审核 - 橙色/警告色，突出审批动作 -->
+      <el-button
+        v-if="!isAuditMode && showSubmitReview"
+        type="warning"
+        size="large"
+        :disabled="isDetail || submitLoading"
+        @click="handleSubmitReview"
+      >
+        {{ isRejected ? '重新提交' : '提交审核' }}
+      </el-button>
+
+      <!-- 审核操作按钮（暂时隐藏） -->
+      <template v-if="false">
+        <el-button
+          type="success"
+          size="large"
+          @click="handleAuditApprove"
+        >
+          审核通过
+        </el-button>
+        <el-button
+          type="danger"
+          size="large"
+          @click="handleAuditReject"
+        >
+          驳回
+        </el-button>
+        <el-button
+          type="warning"
+          size="large"
+          @click="handleAuditTransfer"
+        >
+          转办
+        </el-button>
+      </template>
+
+      <!-- 批准操作按钮 -->
+      <template v-if="false">
+        <el-button
+          type="success"
+          size="large"
+          @click="handleAuditApprove"
+        >
+          批准通过
+        </el-button>
+        <el-button
+          type="danger"
+          size="large"
+          @click="handleAuditReject"
+        >
+          驳回
+        </el-button>
+        <el-button
+          type="warning"
+          size="large"
+          @click="handleAuditTransfer"
+        >
+          转办
+        </el-button>
+      </template>
+
+      <el-button
+        v-if="false"
+        type="success"
+        size="large"
+        :loading="exportLoading"
+        @click="exportWord"
+      >
+        导出Word报告
+      </el-button>
+    </div>
+
+    <InspectionDialog
+      ref="inspectionDialogRef"
+      @confirm="selectInspection"
+    />
+
+    <el-dialog
+      v-model="previewVisible"
+      title="PDF 预览"
+      width="90vw"
+      height="85vh"
+      style="height:85vh;display:flex;flex-direction:column;"
+    >
+      <iframe
+        ref="pdfIframe"
+        style="width:100%;height:100%;border:none;flex:1;"
+        frameborder="0"
+        scrolling="auto"
+      />
+    </el-dialog>
+  </div>
 </template>
 
+<script>
+    export default {
+        name: 'ReportForm'  //  必须添加，keep-alive 缓存依赖
+    }
+</script>
+
 <script setup>
-    import { ref, onMounted, nextTick } from 'vue'
+
+    import { ref, onMounted, nextTick, computed, watch } from 'vue' 
     import { useRouter, useRoute } from 'vue-router'
     import { ElMessage, ElMessageBox } from 'element-plus'
     import axios from 'axios'
@@ -121,20 +295,49 @@
     import { useForm } from './composables/useForm'
     import { useTestProject } from './composables/useTestProject'
     import { generatePrintHTML } from './utils/printHelper'
+    import { useUserStore } from '@/stores/user'
 
     const reportRef = ref(null)
     const router = useRouter()
     const route = useRoute()
 
-    const id = route.query.id
-    const isDetail = !!route.query.detail
-    const isEdit = !!id && !isDetail
+
+
+
+    // 改
+    const id = ref(route.params.id)
+    const isDetail = ref(route.query.detail === '1')
+    const isEdit = ref(route.name === 'ReportEdit')
+
+    const isTaskMode = computed(() => route.query.task === 'true')
+    const isReviewMode = computed(() => route.query.mode === 'review')
+    const isApprovalMode = computed(() => route.query.mode === 'approval')
+    const isAuditMode = computed(() => isReviewMode.value || isApprovalMode.value)
+
+    const pageTitle = computed(() => {
+        if (isReviewMode.value) return '审核报告'
+        if (isApprovalMode.value) return '批准报告'
+        if (isDetail.value) return '报告详情'
+        if (isEdit.value) return '编辑检测报告'
+        return '新增检测报告'
+    })
+
+    const savedAt = ref('')
+
+
 
     const activeTab = ref('content')
     const loading = ref(false)
     const previewLoading = ref(false)
 
-    const isCNASReport = ref(false)
+    let lastSaveTime = 0
+
+
+    const isCNASReport = computed({
+        get: () => homeForm.IsCnas ?? false,
+        set: (val) => { homeForm.IsCnas = val }
+    })
+
     const watermarkText = ref('NORMAL TESTING TECHNOLOGY')
 
     const previewVisible = ref(false)
@@ -144,10 +347,12 @@
 
     const {
         homeForm, fixedForm,
-        addTestEnvRow, deleteTestEnvRow,
+        addTestEnvRow, 
+        deleteTestEnvRow: deleteTestEnvRowFromForm,  // 重命名
         addTestEquipmentRow, deleteTestEquipmentRow,
         submitReport: submitReportAPI, loadReportDetail
     } = useForm()
+
 
     const {
         testProjects, techSpecList, projectDataCache, //  解构出缓存对象
@@ -155,10 +360,38 @@
         getTestReferenceByOrderNo, getInspectionListByOrderNo, getAgreementByOrderNo,
         setDefaultTechSpecForAllRows,
         addTableRow, deleteTableRow, deleteImpactRow, deleteFerriteRow, deleteFerriteGroup, 
+        addTensileRow, deleteTensileRow, deleteTensileGroup, cloneTensileGroup, copyTensileTableAsGroup,  
+        addVickersRow, deleteVickersRow, deleteVickersGroup,
+        copyCorrosionTableAsGroup, cloneCorrosionGroup, deleteCorrosionGroup,
+        addCorrosionRow, deleteCorrosionRow,
+        copyInclusionTableAsGroup,
+        cloneInclusionGroup,
+        deleteInclusionGroup,
+        addInclusionRow,
+        deleteInclusionRow,
+        copyChemTableAsGroup,
+        cloneChemGroup,
+        deleteChemGroup,
+        addChemRow,
+        deleteChemRow,
+        copyMetallographicTableAsGroup,
+        cloneMetallographicGroup,
+        deleteMetallographicGroup,
+        addMetallographicRow,
+        deleteMetallographicRow,
         addPhotoRow, removePhotoRow, pickPhoto,
         onProjectCodeChange: onProjectCodeChangeFn,
         onTechSpecChange: onTechSpecChangeFn
     } = useTestProject()
+
+    watch([testProjects, homeForm, fixedForm], () => {
+        if (savedAt.value) savedAt.value = ''
+    }, { deep: true })
+
+    // 本地覆盖 deleteTestEnvRow
+    function deleteTestEnvRow(index) {
+        deleteTestEnvRowFromForm(index, testProjects)
+    }
 
     async function urlToDataURL(url) {
         if (!url) return ''
@@ -177,8 +410,158 @@
         return url
     }
 
+    const handleAuditApprove = async () => {
+        try {
+            await ElMessageBox.confirm('确认通过？', '提示', { type: 'warning' })
+
+            const target = findTargetBlock()
+            if (!target) {
+                ElMessage.error('未找到您需要审批的区块')
+                return
+            }
+
+            const url = isReviewMode.value
+                ? '/api/Approval/ApproveReview'
+                : '/api/Approval/ApproveApproval'
+
+            const res = await axios.post(url, {
+                reportId: id.value,
+                projectIndex: target.projectIndex,
+                blockIndex: target.blockIndex
+            })
+
+            if (res.data.Success) {
+                ElMessage.success(isReviewMode.value ? '审核通过' : '批准通过')
+                router.push('/task')
+            } else {
+                ElMessage.error(res.data.Message || '操作失败')
+            }
+        } catch (e) {
+            if (e !== 'cancel') ElMessage.error('操作失败')
+        }
+    }
+
+    // 审核/批准驳回
+    const handleAuditReject = async () => {
+        try {
+            const { value: reason } = await ElMessageBox.prompt('请输入驳回原因', '驳回', {
+                confirmButtonText: '确认驳回',
+                cancelButtonText: '取消',
+                inputType: 'textarea'
+            })
+
+            const target = findTargetBlock()
+            if (!target) {
+                ElMessage.error('未找到您需要审批的区块')
+                return
+            }
+
+            const url = isReviewMode.value
+                ? '/api/Approval/RejectReview'
+                : '/api/Approval/RejectApproval'
+
+            const res = await axios.post(url, {
+                reportId: id.value,
+                projectIndex: target.projectIndex,
+                blockIndex: target.blockIndex,
+                reason: reason
+            })
+
+            if (res.data.Success) {
+                ElMessage.success('已驳回')
+                router.push('/task')
+            } else {
+                ElMessage.error(res.data.Message || '操作失败')
+            }
+        } catch (e) {
+            if (e !== 'cancel') ElMessage.error('操作失败')
+        }
+    }
+
+    // 转办
+    const handleAuditTransfer = async () => {
+        try {
+            const { value: targetUser } = await ElMessageBox.prompt('请输入转办目标人', '转办', {
+                confirmButtonText: '确认转办',
+                cancelButtonText: '取消',
+                inputPlaceholder: '请输入目标人姓名'
+            })
+
+            const target = findTargetBlock()
+            if (!target) {
+                ElMessage.error('未找到您需要审批的区块')
+                return
+            }
+
+            const res = await axios.post('/api/Approval/Transfer', {
+                reportId: id.value,
+                projectIndex: target.projectIndex,
+                blockIndex: target.blockIndex,
+                targetUser: targetUser
+            })
+
+            if (res.data.Success) {
+                ElMessage.success(`已转办给 ${targetUser}`)
+                router.push('/task')
+            } else {
+                ElMessage.error(res.data.Message || '操作失败')
+            }
+        } catch (e) {
+            if (e !== 'cancel') ElMessage.error('操作失败')
+        }
+    }
+
+    /** 审批操作后刷新报告数据（重新拉详情 + 更新 reportStatus） */
+    async function refreshReport() {
+        if (!id.value) return
+        try {
+            // 1. 重新拉详情（内部会刷新 testProjects / fixedForm / homeForm）
+            await loadReportDetail(id.value, testProjects, fixedForm, homeForm, projectDataCache)
+
+            // 2. 单独请求一次报告头，拿最新的 Status
+            //    （loadReportDetail 不返回值，所以这里再发一次请求）
+            const res = await axios.get(`/api/DetectionReport/${id.value}`)
+            const newStatus = res.data?.Data?.Status || res.data?.Data?.status
+                || res.data?.Status || res.data?.status
+            if (newStatus) {
+                reportStatus.value = newStatus
+                console.log(' reportStatus 已刷新为:', newStatus)
+            }
+
+            // 3. 刷新技术要求下拉
+            await nextTick()
+            if (reportRef.value?.refreshAllTechRequirements) {
+                await reportRef.value.refreshAllTechRequirements()
+            }
+        } catch (e) {
+            console.error('刷新报告失败', e)
+            ElMessage.error('刷新数据失败，请手动刷新页面')
+        }
+    }
+
     async function buildReportHtml() {
         const projectsCopy = JSON.parse(JSON.stringify(testProjects.value))
+
+        //  只同步已存在的 signatureItems 的 URL，不再强制创建空签名
+        for (const project of projectsCopy) {
+            const reportData = project.reportData || {}
+
+            // 只有当 signatureItems 已存在且非空时，才同步签名 URL
+            if (reportData.signatureItems && reportData.signatureItems.length > 0) {
+                for (const item of reportData.signatureItems) {
+                    if (item.role === '编制') {
+                        item.signatureUrl = reportData.compiledSignatureUrl || item.signatureUrl || ''
+                    } else if (item.role === '审核') {
+                        item.signatureUrl = reportData.reviewSignatureUrl || item.signatureUrl || ''
+                    } else if (item.role === '批准') {
+                        item.signatureUrl = reportData.approvalSignatureUrl || item.signatureUrl || ''
+                    }
+                }
+            }
+            // 如果 signatureItems 为空/不存在 → 保持不动，不创建
+        }
+
+        // 照片转换（原有逻辑保持不变）
         const photoPromises = []
         for (const project of projectsCopy) {
             const rows = project.reportData?.photoRows
@@ -190,6 +573,7 @@
             }
         }
         await Promise.all(photoPromises)
+
         return generatePrintHTML(homeForm, fixedForm, projectsCopy, watermarkText.value, isCNASReport.value)
     }
 
@@ -202,7 +586,8 @@
                 reportNo: homeForm.ReportNo || '',
                 factoryCode: homeForm.FactoryCode || '',
                 isCNAS: isCNASReport.value,
-                watermarkText: watermarkText.value
+                watermarkText: watermarkText.value,
+                ReportId: id.value
             })
 
             if (!res.data.success) {
@@ -223,12 +608,20 @@
 
     const inspectionDialogRef = ref(null)
     function openInspectionDialog() {
-        if (isDetail) { ElMessage.warning('详情页不可选择报检单'); return; }
+        if (isDetail.value) { ElMessage.warning('详情页不可选择报检单'); return; }   
         inspectionDialogRef.value?.open()
     }
 
+
+
     // 保存报告 + 报告编号严谨校验（SZNM+7位数字：年份后两位+月份+3位序号）
     async function submitReport() {
+        //  冷却检查：2 秒内不允许重复保存
+        const now = Date.now()
+        if (now - lastSaveTime < 2000) {
+            ElMessage.warning('请勿频繁保存')
+            return
+        }
 
         // 1. 校验厂区代码
         const factoryCode = homeForm.FactoryCode?.trim() || '';
@@ -293,13 +686,37 @@
             return;
         }
         loading.value = true;
-        try {
-            // 当 ContentTab 未挂载时，使用默认间距
+        try {     
+            //  调用 submitReportAPI 时传入 signatureInfo
             const marginData = reportRef.value?.getMarginData() || { fixedMargins: {}, projectMargins: [] };
-            const success = await submitReportAPI(testProjects.value, isEdit, id, marginData);
-            if (success) {
-                ElMessage.success('保存成功！');
-                await router.push('/report/list');
+            const result = await submitReportAPI(
+                testProjects.value,
+                isEdit.value,
+                id.value,
+                marginData
+            );
+
+            if (result?.success) {
+                lastSaveTime = Date.now()
+                // 新增 → 切换到编辑模式
+                if (!isEdit.value && result.reportId) {
+                    id.value = result.reportId
+                    isEdit.value = true
+                    window.history.replaceState({}, '', `/report/edit/${result.reportId}`)
+                    ElMessage.success({
+                        message: '保存成功，已进入编辑模式，可继续修改',
+                        duration: 4000
+                    })
+                } else {
+                    ElMessage.success('保存成功')
+                }
+
+                savedAt.value = new Date().toLocaleTimeString('zh-CN', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                })
+            } else {
+                ElMessage.error('保存失败')
             }
         } finally {
             loading.value = false;
@@ -308,26 +725,221 @@
 
     // 返回列表 + 二次确认提示
     async function back() {
-        // 详情页直接返回，无需提示
-        if (isDetail) {
-            router.push('/report/list')
+        if (isDetail.value) {                     
+            router.push({ path: '/report/list', query: route.query })   
             return
         }
         try {
             await ElMessageBox.confirm(
                 '是否确认返回报告列表？\n未保存的数据将会丢失！',
                 '提示',
+                { confirmButtonText: '确认返回', cancelButtonText: '取消', type: 'warning' }
+            )
+            router.push({ path: '/report/list', query: route.query })   
+        } catch (error) {
+            ElMessage.info('已取消返回')
+        }
+    }
+
+    const submitLoading = ref(false)
+
+    // 判断当前报告是否处于“已退回”状态（通过路由参数或接口返回）
+    const isRejected = ref(false)  // 可在加载报告时从详情数据获取
+
+    // 是否显示“提交审核”按钮
+    const showSubmitReview = computed(() => {
+        // 详情页不显示，且只有 draft 或 rejected 状态才显示
+        if (isDetail.value) return false
+        // 通过路由参数或 store 获取报告状态
+        const status = reportStatus.value
+        return status === 'draft' || status === 'rejected'
+    })
+
+    /**
+     * 提交审核（或重新提交）
+     */
+    async function handleSubmitReview() {
+        // 1. 核心数据校验（不变）
+        if (!homeForm.ReportNo?.trim()) {
+            ElMessage.warning('请填写报告编号')
+            return
+        }
+        if (!fixedForm.inspectionOrderNo) {
+            ElMessage.warning('请填写报检单号')
+            return
+        }
+        const emptyEnv = fixedForm.testEnv.some(t => !t.projectCode || !t.techSpecCode)
+        if (emptyEnv) {
+            ElMessage.warning('请完善所有检测环境')
+            return
+        }
+
+        // ⭐ 2. 校验审批区块（核心改动）
+        const projects = testProjects.value || []
+
+        // 2a. 全报告至少一个审批区块
+        const hasAnyBlock = projects.some(p =>
+            (p.reportData?.signatureBlocks?.length || 0) > 0
+        )
+        if (!hasAnyBlock) {
+            ElMessage.warning('请至少添加一个审批区域后再提交')
+            return
+        }
+
+        // 2b. 逐项目校验
+        const REQUIRED_CODES = ['JCXMHJ-07']   // 强制要求审批区域的项目
+        const invalidBlocks = []
+        const missingBlockProjects = []
+        const missingPersonProjects = []
+
+        for (const project of projects) {
+            const blocks = project.reportData?.signatureBlocks || []
+            const code = project.projectCode || ''
+            const projectName = project.schemeConfig?.ProjectTitle
+                || project.techSpecName
+                || code
+                || '未命名项目'
+
+            // 该项目是否强制要求审批区域
+            const requiresBlock = REQUIRED_CODES.includes(code)
+
+            // 没区块
+            if (blocks.length === 0) {
+                if (requiresBlock) {
+                    missingBlockProjects.push(`${code}（${projectName}）`)
+                }
+                continue
+            }
+
+            // 有区块，检查审核人/批准人
+            const hasMissing = blocks.some(b => {
+                const reviewer = b.Reviewer || b.reviewer || ''
+                const approver = b.Approver || b.approver || ''
+                return !reviewer || !approver
+            })
+            if (hasMissing) {
+                missingPersonProjects.push(`${code}（${projectName}）`)
+            }
+        }
+
+        if (missingBlockProjects.length > 0) {
+            ElMessage.warning(
+                `以下项目必须添加审批区域：${missingBlockProjects.join('、')}`
+            )
+            return
+        }
+
+        if (missingPersonProjects.length > 0) {
+            ElMessage.warning(
+                `以下项目的审批区块缺少审核人或批准人：${missingPersonProjects.join('、')}`
+            )
+            return
+        }
+
+        // 3. 二次确认弹窗（不变）
+        try {
+            await ElMessageBox.confirm(
+                '提交后报告将进入审核流程，不可再编辑。确认提交？',
+                '提交审核确认',
                 {
-                    confirmButtonText: '确认返回',
+                    confirmButtonText: '确认提交',
                     cancelButtonText: '取消',
                     type: 'warning'
                 }
             )
-            // 用户确认后返回
-            router.push('/report/list')
-        } catch (error) {
-            // 用户取消，不做操作
-            ElMessage.info('已取消返回')
+        } catch {
+            ElMessage.info('已取消提交')
+            return
+        }
+
+        // 4. 先保存草稿（不变）
+        submitLoading.value = true
+        try {
+            const marginData = reportRef.value?.getMarginData() || { fixedMargins: {}, projectMargins: [] }
+
+            const saveResult = await submitReportAPI(
+                testProjects.value,
+                isEdit.value,
+                id.value,
+                marginData
+            )
+
+            if (!saveResult?.success) {
+                ElMessage.error('保存失败，请重试')
+                return
+            }
+
+            if (!isEdit.value && saveResult.reportId) {
+                id.value = saveResult.reportId
+                isEdit.value = true
+                window.history.replaceState({}, '', `/report/edit/${saveResult.reportId}`)
+            }
+
+            // 5. 调用提交审核接口（不变）
+            const res = await axios.post('/api/Approval/SubmitReview', {
+                reportId: id.value || homeForm.ReportId,
+            })
+
+            if (res.data.Success) {
+                ElMessage.success(isRejected.value ? '已重新提交审核' : '提交审核成功！')
+                await router.push('/report/list')
+            } else {
+                ElMessage.error(res.data.Message || '提交审核失败')
+            }
+        } catch (e) {
+            console.error('提交审核异常', e)
+            const msg = e.response?.data?.Message
+                || e.response?.data?.message
+                || '提交审核失败，请重试'
+            ElMessage.error(msg)
+        } finally {
+            submitLoading.value = false
+        }
+    }
+
+
+    //导出word
+    const exportLoading = ref(false)
+
+    async function exportWord() {
+        if (!homeForm.ReportNo) {
+            ElMessage.warning('请先填写报告编号')
+            return
+        }
+        exportLoading.value = true
+        try {
+            // 1. 生成报告 HTML（包含照片 base64）
+            const html = await buildReportHtml()
+
+            // 2. 加载 Logo 图片转为 base64（与 PDF 预览一致）
+            const logoUrl = new URL('/images/logo.png', window.location.origin).href
+            const logoDataUrl = await urlToDataURL(logoUrl)
+
+            // 3. 发送请求
+            const res = await axios.post('/api/DetectionReport/ExportWord', {
+                HtmlContent: html,
+                ReportNo: homeForm.ReportNo,
+                IsCNAS: isCNASReport.value,
+                WatermarkText: watermarkText.value,
+                LogoBase64: logoDataUrl,        // 新增字段
+                FactoryCode: homeForm.FactoryCode
+            }, {
+                responseType: 'blob'
+            })
+            const url = window.URL.createObjectURL(new Blob([res.data]))
+            const link = document.createElement('a')
+            link.href = url
+            link.download = `检测报告_${homeForm.ReportNo}.doc`
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+            window.URL.revokeObjectURL(url)
+            ElMessage.success('Word 导出成功')
+        } catch (e) {
+            console.error(e)
+            ElMessage.error('Word 导出失败，请重试')
+        } finally {
+            exportLoading.value = false
         }
     }
 
@@ -335,8 +947,22 @@
     async function selectInspection(row) {
         fixedForm.inspectionOrderNo = row['报检单号'] || ''
         fixedForm.orderNo = row['委托单号'] || ''
+
+
+
+        //  拼接三行内容，直接存入 sampleInfo
+        const lines = []
+        // 第一行：订单号（为空时显示 /）
+        lines.push(`Order No./订单号：${row['订单号'] || '/'}`)
+        // 第二行：炉号（优先取 炉号批号，为空时显示 /）
+        const heatNo =  row['炉号'] || '/'
+        lines.push(`Heat No./炉号：${heatNo}`)
+        // 第三行：批号（为空时显示 /）
+        lines.push(`Lot No./批号：${row['批号'] || '/'}`)
+        fixedForm.sampleInfo = lines.join('\n')
+
         ElMessage.success('选择成功')
-        if (fixedForm.orderNo && !isDetail && !isEdit) {
+        if (fixedForm.orderNo && !isDetail.value && !isEdit.value) {
             await getTestReferenceByOrderNo(fixedForm.orderNo)
             const itemList = await getInspectionListByOrderNo(fixedForm.orderNo, fixedForm.inspectionOrderNo)
             if (itemList && itemList.length) {
@@ -413,20 +1039,79 @@
         fixedForm.testEquipment[index] = { ...fixedForm.testEquipment[index], name: equipment.name, model: equipment.model, eqNo: equipment.eqNo, validUntil: equipment.validUntil };
     }
 
+    // 查找当前用户对应的审批区块索引（兼容新旧格式）
+    const findTargetBlock = () => {
+        const userStore = useUserStore()
+        const currentUser = userStore.userName
+
+        // 调试日志
+        console.log('currentUser =', JSON.stringify(currentUser))
+        console.log('blocks =', JSON.stringify(testProjects.value[0]?.reportData?.signatureBlocks || testProjects.value[0]?.reportData?.SignatureBlocks))
+
+        for (let pIdx = 0; pIdx < testProjects.value.length; pIdx++) {
+            const project = testProjects.value[pIdx]
+            const reportData = project.reportData || {}
+
+            // 1. 优先从 signatureBlocks 查找
+            const blocks = reportData.signatureBlocks || reportData.SignatureBlocks || []
+            for (let bIdx = 0; bIdx < blocks.length; bIdx++) {
+                const block = blocks[bIdx]
+                //  兼容 PascalCase 和 小写/下划线 两种命名
+                const reviewer = block.Reviewer || block.reviewer || ''
+                const reviewStatus = block.ReviewStatus || block.review_status || 'pending'
+                const approver = block.Approver || block.approver || ''
+                const approvalStatus = block.ApprovalStatus || block.approval_status || 'pending'
+
+                if (isReviewMode.value && reviewer === currentUser && reviewStatus === 'pending') {
+                    return { projectIndex: pIdx, blockIndex: bIdx }
+                }
+                if (isApprovalMode.value && approver === currentUser && approvalStatus === 'pending') {
+                    return { projectIndex: pIdx, blockIndex: bIdx }
+                }
+            }
+
+            // 2. 回退到旧格式（直接从 reviewer/approver 字段读取）
+            if (isReviewMode.value && reportData.reviewer === currentUser && reportData.reviewStatus !== 'done') {
+                // 如果旧数据没有 block，自动创建一个临时区块（只用于本次操作）
+                // 但为了保持数据一致，我们直接返回 projectIndex=0, blockIndex=0
+                // 并确保后端能处理
+                return { projectIndex: pIdx, blockIndex: 0 }
+            }
+            if (isApprovalMode.value && reportData.approver === currentUser && reportData.approvalStatus !== 'done') {
+                return { projectIndex: pIdx, blockIndex: 0 }
+            }
+        }
+        return null
+    }
+
+    const reportStatus = ref('draft')
 
     onMounted(async () => {
+
         await getTechSpecList()
         await loadEnvList()
-        if (isEdit || isDetail) {
-            console.log('🔍 传入 loadReportDetail 的 projectDataCache:', projectDataCache)
-
-            await loadReportDetail(id, testProjects, fixedForm, homeForm, projectDataCache)
-
-            //  刷新所有行的技术要求下拉选项
+        if (id.value) {
+            //  从 loadReportDetail 内部获取签名（不改变函数签名）
+            await loadReportDetail(id.value, testProjects, fixedForm, homeForm, projectDataCache)
+            // 优先从 query 读；没有就从后端拿真实状态
+            let status = route.query.status
+            if (!status) {
+                try {
+                    const res = await axios.get(`/api/DetectionReport/${id.value}`)
+                    status = res.data?.Data?.Status || res.data?.Data?.status
+                        || res.data?.Status || res.data?.status
+                } catch (e) {
+                    console.error('读取报告状态失败', e)
+                }
+            }
+            reportStatus.value = status || 'draft'
             await nextTick()
             if (reportRef.value?.refreshAllTechRequirements) {
                 await reportRef.value.refreshAllTechRequirements()
             }
+        } else {
+            // 新建报告默认为 draft
+            reportStatus.value = 'draft'
         }
     })
 </script>

@@ -1,104 +1,250 @@
 ﻿<template>
-    <div class="page-container" style="padding: 20px;">
-        <div class="search-bar" style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
-            <el-input v-model="query.name" placeholder="技术要求名称" style="width: 240px;" clearable />
-            <el-select v-model="query.status" placeholder="状态" style="width: 150px;" clearable>
-                <el-option label="全部" value="" />
-                <el-option label="启用" :value="1" />
-                <el-option label="禁用" :value="0" />
-            </el-select>
-            <el-button type="primary" @click="getList">查询</el-button>
-            <el-button @click="resetQuery">重置</el-button>
-            <el-button type="success" @click="openAdd">新增</el-button>
-        </div>
-
-        <el-table :data="tableData" border stripe style="width: 100%;" :loading="loading">
-            <el-table-column label="ID" prop="Id" align="center" width="80" />
-            <el-table-column label="技术要求名称" prop="Name" align="center" min-width="200" />
-            <el-table-column label="备注" prop="Remark" align="center" min-width="250" show-overflow-tooltip />
-            <el-table-column label="状态" align="center" width="100">
-                <template #default="scope">
-                    <el-tag :type="scope.row.Status === 1 ? 'success' : 'danger'">
-                        {{ scope.row.Status === 1 ? '启用' : '禁用' }}
-                    </el-tag>
-                </template>
-            </el-table-column>
-
-            <el-table-column label="创建人" prop="CreateBy" align="center" width="120" />
-            <el-table-column label="创建时间" prop="CreateTime" align="center" width="180">
-                <template #default="scope">
-                    {{ formatDate(scope.row.CreateTime) }}
-                </template>
-            </el-table-column>
-            <el-table-column label="修改人" prop="UpdateBy" align="center" width="120" />
-            <el-table-column label="修改时间" prop="UpdateTime" align="center" width="180">
-                <template #default="scope">
-                    {{ formatDate(scope.row.UpdateTime) }}
-                </template>
-            </el-table-column>
-
-            <el-table-column label="操作" align="center" width="150" fixed="right">
-                <template #default="scope">
-                    <el-button type="primary" size="small" @click="openEdit(scope.row)">编辑</el-button>
-                    <el-button type="danger" size="small" @click="handleDelete(scope.row.Id)">删除</el-button>
-                </template>
-            </el-table-column>
-        </el-table>
-
-        <el-pagination style="margin-top: 20px; justify-content: flex-end; display: flex;"
-                       v-model:current-page="pagination.currentPage"
-                       v-model:page-size="pagination.pageSize"
-                       :page-sizes="[10, 20, 50, 100]"
-                       :total="pagination.total"
-                       @size-change="handleSizeChange"
-                       @current-change="handleCurrentChange"
-                       layout="total, sizes, prev, pager, next, jumper" />
-
-        <el-dialog v-model="dialogVisible"
-                   :title="form.id ? '编辑技术要求' : '新增技术要求'"
-                   width="500px"
-                   :close-on-click-modal="false">
-            <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
-                <el-form-item label="名称" prop="name">
-                    <el-input v-model="form.name" placeholder="请输入技术要求名称" maxlength="100" show-word-limit />
-                </el-form-item>
-                <el-form-item label="备注" prop="remark">
-                    <el-input v-model="form.remark"
-                              type="textarea"
-                              :rows="3"
-                              placeholder="请输入备注"
-                              maxlength="500"
-                              show-word-limit />
-                </el-form-item>
-                <el-form-item label="状态" prop="status">
-                    <el-switch v-model="form.status"
-                               active-text="启用"
-                               inactive-text="禁用"
-                               :active-value="1"
-                               :inactive-value="0" />
-                </el-form-item>
-
-                <template v-if="form.id > 0">
-                    <el-form-item label="创建人">
-                        <el-input v-model="form.createBy" disabled />
-                    </el-form-item>
-                    <el-form-item label="创建时间">
-                        <el-input :value="formatDate(form.createTime)" disabled />
-                    </el-form-item>
-                    <el-form-item label="修改人">
-                        <el-input v-model="form.updateBy" disabled />
-                    </el-form-item>
-                    <el-form-item label="修改时间">
-                        <el-input :value="formatDate(form.updateTime)" disabled />
-                    </el-form-item>
-                </template>
-            </el-form>
-            <template #footer>
-                <el-button @click="dialogVisible = false">取消</el-button>
-                <el-button type="primary" @click="submitForm">确定</el-button>
-            </template>
-        </el-dialog>
+  <div
+    class="page-container"
+    style="padding: 20px;"
+  >
+    <div
+      class="search-bar"
+      style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;"
+    >
+      <el-input
+        v-model="query.name"
+        placeholder="技术要求名称"
+        style="width: 240px;"
+        clearable
+      />
+      <el-select
+        v-model="query.status"
+        placeholder="状态"
+        style="width: 150px;"
+        clearable
+      >
+        <el-option
+          label="全部"
+          value=""
+        />
+        <el-option
+          label="启用"
+          :value="1"
+        />
+        <el-option
+          label="禁用"
+          :value="0"
+        />
+      </el-select>
+      <el-button
+        type="primary"
+        @click="getList"
+      >
+        查询
+      </el-button>
+      <el-button @click="resetQuery">
+        重置
+      </el-button>
+      <el-button
+        type="success"
+        @click="openAdd"
+      >
+        新增
+      </el-button>
     </div>
+
+    <el-table
+      :data="tableData"
+      border
+      stripe
+      style="width: 100%;"
+      :loading="loading"
+    >
+      <el-table-column
+        label="ID"
+        prop="Id"
+        align="center"
+        width="80"
+      />
+      <el-table-column
+        label="技术要求名称"
+        prop="Name"
+        align="center"
+        min-width="200"
+      />
+      <el-table-column
+        label="备注"
+        prop="Remark"
+        align="center"
+        min-width="250"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        label="状态"
+        align="center"
+        width="100"
+      >
+        <template #default="scope">
+          <el-tag :type="scope.row.Status === 1 ? 'success' : 'danger'">
+            {{ scope.row.Status === 1 ? '启用' : '禁用' }}
+          </el-tag>
+        </template>
+      </el-table-column>
+
+      <el-table-column
+        label="创建人"
+        prop="CreateBy"
+        align="center"
+        width="120"
+      />
+      <el-table-column
+        label="创建时间"
+        prop="CreateTime"
+        align="center"
+        width="180"
+      >
+        <template #default="scope">
+          {{ formatDate(scope.row.CreateTime) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="修改人"
+        prop="UpdateBy"
+        align="center"
+        width="120"
+      />
+      <el-table-column
+        label="修改时间"
+        prop="UpdateTime"
+        align="center"
+        width="180"
+      >
+        <template #default="scope">
+          {{ formatDate(scope.row.UpdateTime) }}
+        </template>
+      </el-table-column>
+
+      <el-table-column
+        label="操作"
+        align="center"
+        width="150"
+        fixed="right"
+      >
+        <template #default="scope">
+          <el-button
+            type="primary"
+            size="small"
+            @click="openEdit(scope.row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            type="danger"
+            size="small"
+            @click="handleDelete(scope.row.Id)"
+          >
+            删除
+          </el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <el-pagination
+      v-model:current-page="pagination.currentPage"
+      v-model:page-size="pagination.pageSize"
+      style="margin-top: 20px; justify-content: flex-end; display: flex;"
+      :page-sizes="[10, 20, 50, 100]"
+      :total="pagination.total"
+      layout="total, sizes, prev, pager, next, jumper"
+      @size-change="handleSizeChange"
+      @current-change="handleCurrentChange"
+    />
+
+    <el-dialog
+      v-model="dialogVisible"
+      :title="form.id ? '编辑技术要求' : '新增技术要求'"
+      width="500px"
+      :close-on-click-modal="false"
+    >
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        label-width="100px"
+      >
+        <el-form-item
+          label="名称"
+          prop="name"
+        >
+          <el-input
+            v-model="form.name"
+            placeholder="请输入技术要求名称"
+            maxlength="100"
+            show-word-limit
+          />
+        </el-form-item>
+        <el-form-item
+          label="备注"
+          prop="remark"
+        >
+          <el-input
+            v-model="form.remark"
+            type="textarea"
+            :rows="3"
+            placeholder="请输入备注"
+            maxlength="500"
+            show-word-limit
+          />
+        </el-form-item>
+        <el-form-item
+          label="状态"
+          prop="status"
+        >
+          <el-switch
+            v-model="form.status"
+            active-text="启用"
+            inactive-text="禁用"
+            :active-value="1"
+            :inactive-value="0"
+          />
+        </el-form-item>
+
+        <template v-if="form.id > 0">
+          <el-form-item label="创建人">
+            <el-input
+              v-model="form.createBy"
+              disabled
+            />
+          </el-form-item>
+          <el-form-item label="创建时间">
+            <el-input
+              :value="formatDate(form.createTime)"
+              disabled
+            />
+          </el-form-item>
+          <el-form-item label="修改人">
+            <el-input
+              v-model="form.updateBy"
+              disabled
+            />
+          </el-form-item>
+          <el-form-item label="修改时间">
+            <el-input
+              :value="formatDate(form.updateTime)"
+              disabled
+            />
+          </el-form-item>
+        </template>
+      </el-form>
+      <template #footer>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="submitForm"
+        >
+          确定
+        </el-button>
+      </template>
+    </el-dialog>
+  </div>
 </template>
 
 <script setup>

@@ -1,129 +1,25 @@
-﻿<template>
-    <el-container style="height: 100vh; border: 1px solid #eee;">
-        <el-aside width="200px" style="background-color: #2e3b4e;">
-            <!--绑定当前路由 -->
-            <el-menu :default-active="route.path"
-                     class="el-menu-vertical-demo"
-                     background-color="#2e3b4e"
-                     text-color="#fff"
-                     active-text-color="#ffd04b"
-                     router
-                     :unique-opened="true">
-
-                <el-menu-item index="/tech-requirement/manage">
-                    <el-icon><Setting /></el-icon>
-                    <template #title>
-                        技术要求配置
-                    </template>
-                </el-menu-item>
-                <el-menu-item index="/config">
-                    <el-icon><Setting /></el-icon>
-                    <template #title>
-                        检测项目模板配置
-                    </template>
-                </el-menu-item>
-                <el-menu-item index="/report/list">
-                    <el-icon><Document /></el-icon>
-                    <template #title>
-                        检测报告管理
-                    </template>
-                </el-menu-item>
-                <el-menu-item index="/lab-data-query">
-                    <el-icon><Document /></el-icon>
-                    <template #title>
-                        实验室数据统计表
-                    </template>
-                </el-menu-item>
-                <el-menu-item index="/Ja-lab-data-query">
-                    <el-icon><Document /></el-icon>
-                    <template #title>
-                        吉安实验室数据统计表
-                    </template>
-                </el-menu-item>
-            </el-menu>
-        </el-aside>
-
-        <el-container>
-            <el-header style="display: flex; align-items: center; justify-content: space-between; font-size: 12px; background: #fff; border-bottom: 1px solid #eee;">
-                <div></div>
-                <span style="font-size: 18px; font-weight: 600; color: #2e3b4e;">检测报告系统</span>
-                <el-dropdown trigger="click">
-                    <el-icon class="cursor-pointer" style="margin-right: 15px; font-size: 18px;"><Setting /></el-icon>
-                    <template #dropdown>
-                        <el-dropdown-menu>
-                            <el-dropdown-item>个人中心</el-dropdown-item>
-                            <el-dropdown-item>修改密码</el-dropdown-item>
-                            <el-dropdown-item divided>退出登录</el-dropdown-item>
-                        </el-dropdown-menu>
-                    </template>
-                </el-dropdown>
-            </el-header>
-            <el-main style="padding: 20px; background-color: #f9fafc;">
-                <router-view />
-            </el-main>
-        </el-container>
-    </el-container>
+﻿<!-- src/App.vue -->
+<template>
+  <router-view />
 </template>
 
 <script setup>
-    import { onMounted } from 'vue'
-    // 导入路由对象
-    import { useRoute } from 'vue-router'
-    import { Setting, Document } from '@element-plus/icons-vue'
-    import axios from 'axios'
-
-    // 获取当前路由
-    const route = useRoute()
-
-    onMounted(() => {
-        const urlParams = new URLSearchParams(window.location.search)
-        const token = urlParams.get('token')
-        const userName = urlParams.get('userName')
-
-        if (token) {
-            console.log("来自云表登录")
-            localStorage.setItem('token', token)
-            localStorage.setItem('username', userName || '云表用户')
-        } else {
-            console.log("本地直接打开，使用默认账户")
-            localStorage.setItem('username', '测试管理员')
-            localStorage.removeItem('token')
-        }
-        localStorage.setItem('loginTime', new Date().toLocaleString())
-
-        axios.interceptors.request.use(config => {
-            const token = localStorage.getItem('token')
-            if (token && typeof token === 'string') {
-                config.headers.Authorization = `Bearer ${token}`
-            }
-            return config
-        }, (error) => {
-            return Promise.reject(error)
-        })
-    })
+    // App.vue 只作为路由出口
 </script>
 
 <style>
     * {
-        font-family: "微软雅黑", "Microsoft Yahei", Arial, sans-serif !important;
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
     }
 
-    .el-header {
-        background: #fff;
-        color: #333;
-        line-height: 60px;
+    html,
+    body {
+        height: 100%;
     }
 
-    .el-aside {
-        color: #fff;
-    }
-
-    .cursor-pointer {
-        cursor: pointer;
-    }
-
-    .el-menu-vertical-demo .el-menu-item {
-        display: flex;
-        align-items: center;
+    #app {
+        height: 100%;
     }
 </style>

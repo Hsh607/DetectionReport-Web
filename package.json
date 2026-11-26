@@ -16,6 +16,8 @@
     "file-saver": "^2.0.5",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
+    "pinia": "^4.0.3",
+    "pinia-plugin-persistedstate": "^4.7.1",
     "sortablejs": "^1.15.7",
     "vue": "^3.2.13",
     "vue-print-nb": "^1.7.5",
